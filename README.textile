@@ -1,0 +1,47 @@
+h1. middleclass-extras
+
+This is a set of additions to "middleclass":http://www.github.org/kikito/middleclass.
+
+h1. Module brief description
+
+What follows is a brief description of each of the middleclass-extras modules. Each nodule is commented
+out with usage examples. You can find more examples on the /spec/ folder.
+
+* @Sender@ is a very small mixin that can be used to 'send' methods to instances. It's main advantage
+  is that it accepts both method names and lua functions on its parameters.
+* @GetterSetter@ just adds a couple convenience getXXX, setXXX methods to your class.
+* @Beholder@ is a small signaling/event controller mixin. Your classes can 'observe' and 'stop observing'
+  events. Note that @Beholder@ requires sender to be included.
+* @Callbacks@ is a powerful mixin that allows you to add 'hooks' to any existing method. For example,
+  you can specify on runtime that you want to call a method after initializing one object.
+* Mindstate defines stateful objects. Classes receive a new method called 'addState', and instances
+  receive a new method called gotoState. The behaviour of each of the instance methods can be redefined
+  per-state.
+
+h1. Installation
+
+Note that middleclass-extras includes middleclass as a git submodule.
+
+In order to download middleclass-extras using git, you will have to do the following:
+
+<pre>
+  git clone git://github.com/kikito/middleclass-extras.git
+  cd middleclass-extras
+  git submodule init
+  git submodule update
+</pre>
+
+h2. Usage
+
+middleclass-extras is prepared to be required like this:
+
+<pre>
+  require('middleclass-extras.init')
+</pre>
+
+Notes:
+* You can remove the .init part above if your loading path already includes it
+* You must make sure that your package.path variable includes the folder inmediately above of middleclass-extras.
+For example, if middleclass-extras is inside a directory called 'libs', you must do:
+
+package.path = 'libs/?;' .. package.path
