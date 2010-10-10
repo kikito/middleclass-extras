@@ -11,7 +11,7 @@ assert(Sender~=nil, 'The Beholder module requires the Sender module in order to 
 --[[ Usage:
 
   require 'MiddleClass' -- or similar
-  require 'middleclass.extras.Beholder' -- or 'middleclass.extras.init'
+  require 'middleclass-extras.Beholder' -- or 'middleclass-extras.init'
 
   MyClass = class('MyClass')
   MyClass:includes(Beholder)

@@ -7,7 +7,7 @@
 --[[ Usage:
 
   require 'MiddleClass' -- or similar
-  require 'middleclass.extras.Sender' -- or 'middleclass.extras.init'
+  require 'middleclass-extras.Sender' -- or 'middleclass-extras.init'
 
   MyClass = class('MyClass')
   MyClass:includes(Sender)

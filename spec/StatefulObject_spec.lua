@@ -1,5 +1,4 @@
-require('MiddleClass')
-require('MindState')
+require('middleclass-extras.init')
 
 context( 'StatefulObject', function()
 

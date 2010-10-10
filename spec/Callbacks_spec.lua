@@ -1,4 +1,4 @@
-require('passion/oop/init')
+require('middleclass-extras.init')
 
 context( 'Callbacks', function()
   local A

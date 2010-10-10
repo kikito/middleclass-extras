@@ -6,7 +6,7 @@
 --[[ Usage:
 
   require 'MiddleClass' -- or similar
-  require 'middleclass.extras.MindState' -- or 'middleclass.extras.init'
+  require 'middleclass-extras.MindState' -- or 'middleclass-extras.init'
 
   -- create a StatefulObject subclass with a method
   MyClass = class('MyClass', StatefulObject)

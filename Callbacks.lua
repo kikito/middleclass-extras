@@ -10,7 +10,7 @@ assert(Sender~=nil, 'The Callbacks module requires the Sender module in order to
 --[[ Usage:
 
   require 'MiddleClass' -- or similar
-  require 'middleclass.extras.Callbacks' -- or 'middleclass.extras.init'
+  require 'middleclass-extras.Callbacks' -- or 'middleclass-extras.init'
   
   MyClass = class('MyClass')
   MyClass:include(Callbacks)
