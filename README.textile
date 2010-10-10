@@ -4,19 +4,13 @@ This is a set of additions to "middleclass":http://www.github.org/kikito/middlec
 
 h1. Module brief description
 
-What follows is a brief description of each of the middleclass-extras modules. Each nodule is commented
-out with usage examples. You can find more examples on the /spec/ folder.
+What follows is a brief description of each of the middleclass-extras modules. Each nodule is commented out with usage examples. You can find more examples on the /spec/ folder.
 
-* *Sender* is a very small mixin that can be used to 'send' methods to instances. It's main advantage
-  is that it accepts both method names and lua functions on its parameters.
+* *Sender* is a very small mixin that can be used to 'send' methods to instances. It's main advantage is that it accepts both method names and lua functions on its parameters.
 * *GetterSetter* just adds a couple convenience getXXX, setXXX methods to your class.
-* *Beholder* is a small signaling/event controller mixin. Your classes can 'observe' and 'stop observing'
-  events. Note that *Sender* must be required before *Beholder*, or the later will not work.
-* *Callbacks* is a powerful mixin that allows you to add 'hooks' to any existing method. For example,
-  you can specify on runtime that you want to call a method after initializing one object.
-* *Mindstate* defines stateful objects. Classes receive a new method called @addState@, and instances
-  receive a new method called @gotoState@. The behaviour of each of the instance methods can be redefined
-  per-state.
+* *Beholder* is a small signaling/event controller mixin. Your classes can 'observe' and 'stop observing' events. Note that *Sender* must be required before *Beholder*, or the later will not work.
+* *Callbacks* is a powerful mixin that allows you to add 'hooks' to any existing method. For example, you can specify on runtime that you want to call a method after initializing one object.
+* *Mindstate* defines stateful objects. Classes receive a new method called @addState@, and instances receive a new method called @gotoState@. The behaviour of each of the instance methods can be redefined per-state.
 
 h1. Installation
 
@@ -41,9 +35,7 @@ middleclass-extras is prepared to be required like this:
 
 Notes:
 * You can remove the .init part above if your loading path already includes it
-* The package assumes that it will be placed on a directory whose parent is included on the path.
-Normally, putting it on the 'root' of your project should work. Otherwise, you will have to modify
-your @package.path@ variable so includes the 'parent folder' inmediately above of middleclass-extras.
+* The package assumes that it will be placed on a directory whose parent is included on the path. Normally, putting it on the 'root' of your project should work. Otherwise, you will have to modify your @package.path@ variable so includes the 'parent folder' inmediately above of middleclass-extras.
 For example, if middleclass-extras is inside a directory called 'libs', you must do:
 
 <pre>
