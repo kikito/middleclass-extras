@@ -14,17 +14,17 @@ assert(Sender~=nil, 'The Callbacks module requires the Sender module in order to
   
   MyClass = class('MyClass')
   MyClass:include(Callbacks)
-  
-  MyClass:addCallbacksAround('foo') -- this defines methods 'beforeFoo' and 'afterFoo'
-  
-  MyClass:beforeFoo('bar') -- can use either method names or functions
-  MyClass:afterFoo(function() print('baz') end)
-  
+
+  -- This means: on MyClass instances, every time the user writes obj:foo(),
+  --   * obj:bar() must be executed before
+  --   * The function must be executed after
+  MyClass:addCallbackAround('foo', 'bar', function() print('baz') end)
+
   function MyClass:foo() print 'foo' end
   function MyClass:bar() print 'bar' end
-  
+
   local obj = MyClass:new()
-  
+
   obj:foo() -- prints 'bar foo baz'
 ]]
 
@@ -35,98 +35,80 @@ assert(Sender~=nil, 'The Callbacks module requires the Sender module in order to
 --[[ holds all the callbacks entries.
      callback entries are just lists of methods to be called before / after some other method is called
 
-  _callbackEntries = {
-    Actor = {
-      beforeUpdate = { methods = {m1, m2, m3 } }, -- m1, m2, m3 & m4 can be method names or functions
-      afterUpdate = { methods = { 'm4' } },
-      update = {
-        before = 'beforeUpdate',
-        after = 'afterUpdate'
+  -- m1, m2, m3 & m4 can be method names (strings) or functions
+  _entries = {
+    Actor = {                           -- class
+      update = {                          -- method
+        before = {                          -- 'before' actions
+          { method = m1, params={} },
+          { method = m2, params={'blah', 'bleh'} },
+          { method = m3, params={'foo', 'bar'} }
+        }
+        after = {                           -- 'after' actions
+          { method = 'm4', params={1,2} }
+        }
       }
     }
   }
 
 ]]
-local _callbackEntries = setmetatable({}, {__mode = "k"}) -- weak table
+local _entries = setmetatable({}, {__mode = "k"}) -- weak table
 
 -- cache for not re-creating methods every time they are needed
 local _methodCache = setmetatable({}, {__mode = "k"})
 
 -- private class methods
 
-local _getCallbackEntry
-local function _getCallbackEntry(theClass, callbackName)
-  if theClass == nil or callbackName == nil then return nil end
-  if  _callbackEntries[theClass] ~= nil and _callbackEntries[theClass][callbackName] ~= nil then
-    return _callbackEntries[theClass][callbackName]
+local function _getEntry(theClass, methodName)
+  if  _entries[theClass] ~= nil and _entries[theClass][methodName] ~= nil then
+    return _entries[theClass][methodName]
   end
-  return _getCallbackEntry(theClass.superclass, callbackName)
 end
 
--- creates one of the "level 2" entries on callbacks, like beforeUpdate or afterupdate, above
-local function _getOrCreateCallbackEntry(theClass, callbackName)
-  if not theClass or not callbackName then return {} end
-  _callbackEntries[theClass] = _callbackEntries[theClass] or setmetatable({}, {__mode = "k"})
-  local classEntries = _callbackEntries[theClass]
-  classEntries[callbackName] = classEntries[callbackName] or setmetatable({ methods={} }, {__mode = "k"}) 
-
-  return classEntries[callbackName]
+local function _getOrCreateEntry(theClass, methodName)
+  if  _entries[theClass] == nil then
+    _entries[theClass] = {}
+  end
+  if _entries[theClass][methodName] == nil then
+    _entries[theClass][methodName] = { before = {}, after = {} }
+  end
+  return _entries[theClass][methodName]
 end
 
--- returns all the methods that should be called when a callback is invoked, including superclasses
-local function _getCallbackEntryChainMethods(theClass, callbackName)
+
+--[[
+Returns all the actions that should be called when a callback is invoked, parsing superclasses
+Warning: it returns two separate lists
+Format:
+{ -- before
+  { method='m1', params={1,2} }, 
+  { method='m2', params={3,4} }
+},
+{ -- after
+  { method='m3', params={'a','b'} }, 
+  { method='m4', params={'foo'} }
+}
+]]
+local function _getActions(theClass, methodName)
   if theClass==nil then return {} end
-  local methods = _getOrCreateCallbackEntry(theClass, callbackName).methods
-  local superMethods = _getCallbackEntryChainMethods(theClass.superclass, callbackName)
-
-  local result = {}
-  for i,method in ipairs(methods) do result[i]=method end
-  for _,method in ipairs(superMethods) do table.insert(result, method) end
-
-  return result
-end
-
--- defines a callback method. These methods are used to add "methods" to the callback.
--- for example, after calling _defineCallbackMethod(Actor, 'afterUpdate') you can then do
--- Actor:afterUpdate('removeFromList', 'dance', function(actor) actor:doSomething() end)
-local function _defineCallbackMethod(theClass, callbackName)
-  if callbackName == nil then return nil end
-
-  assert(rawget(theClass.__classDict,callbackName)==nil, "Could not define " .. theClass.name .. '.'  .. callbackName .. ": already defined")
   
-  theClass[callbackName] = function(theClass, ...)
-    local methods = {...}
-    local existingMethods = _getOrCreateCallbackEntry(theClass, callbackName).methods
-    for _,method in ipairs(methods) do
-      table.insert(existingMethods, method)
+  local before, after = {}, {}
+  
+  while theClass~=nil do
+    local entry = _getEntry(theClass, methodName)
+    if entry~=nil then
+      for _,action in ipairs(entry.before) do table.insert(before, action) end
+      for _,action in ipairs(entry.after) do table.insert(after, action) end
     end
+    theClass = theClass.superclass
   end
 
-  _getOrCreateCallbackEntry(theClass, callbackName)
-
-  return theClass[callbackName]
-end
-
--- private instance methods
-
--- given a callback entry, obtain all the methods that must be called for that callback and execute them
-local function _runCallbackChain(object, entry, before_or_after)
-  if entry == nil then return true end
-  callbackName = entry[before_or_after]
-  if callbackName==nil then return true end
-  local methods = _getCallbackEntryChainMethods(object.class, callbackName)
-  for _,method in ipairs(methods) do
-    if Sender.send(object, method) == false then return false end
-  end
-  return true
+  return before, after
 end
 
 -- given a class and a method, this returns a new version of that method that invokes callbacks
 -- uses a cache for not calculating the methods every time
 function _getChainedMethod(theClass, methodName, method)
-  local entry = _getCallbackEntry(theClass, methodName)
-
-  if(entry==nil) then return method end
 
   _methodCache[theClass] = _methodCache[theClass] or setmetatable({}, {__mode = "k"})
   local classCache = _methodCache[theClass]
@@ -134,10 +116,11 @@ function _getChainedMethod(theClass, methodName, method)
   local chainedMethod = classCache[methodName]
   
   if chainedMethod == nil then
-    chainedMethod = function(self, ...)
-      if _runCallbackChain(self, entry, 'before') == false then return false end
-      local result = method(self, ...)
-      if _runCallbackChain(self, entry, 'after') == false then return false end
+    chainedMethod = function(instance, ...)
+      local before, after = _getActions(theClass, methodName)
+      if _invokeActions(instance, before) == false then return false end
+      local result = method(instance, ...)
+      if _invokeActions(instance, after) == false then return false end
       return result
     end
     classCache[methodName] = chainedMethod
@@ -146,20 +129,15 @@ function _getChainedMethod(theClass, methodName, method)
   return chainedMethod
 end
 
--- helper function used by addCallbacksBefore, after and around
-function _addCallbacks(theClass, before_or_after, methodName, callbackMethodName)
-  assert(type(methodName)=='string', 'methodName must be a string')
-  assert(before_or_after == 'before' or before_or_after == 'after', 'Parameter must be "before" or "after"')
+-- private instance methods
 
-  local entry = _getOrCreateCallbackEntry(theClass, methodName)
-
-  assert(entry[before_or_after] == nil, 'The "' .. tostring(before_or_after) .. '" callback is already defined as "' .. tostring(entry[before_or_after]) .. '". Use that callback method instead or adding a new one' )
-  callbackMethodName = callbackMethodName or before_or_after .. methodName:gsub("^%l", string.upper)
-
-  _defineCallbackMethod(theClass, callbackMethodName)
-
-  entry[before_or_after]= callbackMethodName
+function _invokeActions(instance, actions)
+  for _,action in ipairs(actions) do
+    if Sender.send(instance, action.method, unpack(action.params)) == false then return false end
+  end
+  return true
 end
+
 
 --------------------------------
 --      PUBLIC STUFF
@@ -196,29 +174,37 @@ function Callbacks:included(theClass)
     })
 
     -- special treatment for afterInitialize callbacks
-    local entry = _getCallbackEntry(theClass, 'initialize')
-    if _runCallbackChain(instance, entry, 'after') == false then return false end
+    local _, afterInitialize = _getActions(theClass, 'initialize')
+    _invokeActions(instance, afterInitialize)
 
     return instance
   end
  
 end
 
--- usage: Actor:addCallbacksBefore('update')
--- callbackMethodName is optional, defaulting to 'beforeUpdate'
-function Callbacks.addCallbacksBefore(theClass, methodName, callbackMethodName)
-  _addCallbacks(theClass, 'before', methodName, callbackMethodName)
+--[[
+Usage:
+
+    Actor:addCallback('before', 'update', 'doSomething', 1, 2)
+
+Also valid:
+
+    Actor:addCallback('before', 'update', function(actor, x,y) actor:doSomething(x,y) end, 1, 2)
+
+First parameter must be the string 'before' or the string 'after'
+methodName must be a string designatign a method (can be non-existing)
+callback can be either a method name or a function
+Note: before initialize callbacks will never be executed (after initialize will)
+]]
+function Callbacks.addCallback(theClass, beforeOrAfter, methodName, callback, ...)
+  assert(type(methodName)=='string', 'methodName must be a string')
+  assert(beforeOrAfter == 'before' or beforeOrAfter == 'after', 'beforeOrAfter must be either "before" or "after"')
+  local tCallback = type(callback)
+  assert(tCallback == 'string' or tCallback == 'function', 'callback must be a method name or a function')
+
+  local entry = _getOrCreateEntry(theClass, methodName)
+
+  table.insert(entry[beforeOrAfter], {method = callback, params = {...}})
 end
 
--- usage: Actor:addCallbacksAfter('initialize')
--- callbackMethodName is optional, defaulting to 'afterInitialize'
-function Callbacks.addCallbacksAfter(theClass, methodName, callbackMethodName)
-  _addCallbacks(theClass, 'after', methodName, callbackMethodName)
-end
 
--- usage: Actor:addCallbackAround('update')
--- before & afterCallbackMethodName are optional, defaulting to 'beforeUpdate' and 'afterUpdate'
-function Callbacks.addCallbacksAround(theClass, methodName, beforeCallbackMethodName, afterCallbackMethodName)
-  _addCallbacks(theClass, 'before', methodName, beforeCallbackMethodName)
-  _addCallbacks(theClass, 'after', methodName, afterCallbackMethodName)
-end
