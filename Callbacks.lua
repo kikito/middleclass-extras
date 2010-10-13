@@ -75,6 +75,12 @@ local function _getOrCreateEntry(theClass, methodName)
   return _entries[theClass][methodName]
 end
 
+-- returns true only if there is the method has no entries on theClass or any of theClass' superclasses
+local function _isPlainMethod(theClass, methodName)
+  if theClass == nil then return true end
+  if _entries[theClass] ~= nil and _entries[theClass][methodName] ~= nil then return false end
+  return _isPlainMethod(theClass.superclass, methodName)
+end
 
 --[[
 Returns all the actions that should be called when a callback is invoked, parsing superclasses
@@ -167,7 +173,7 @@ function Callbacks:included(theClass)
         elseif tIndex == 'function' then method = prevIndex(instance, methodName)
         end
 
-        if type(method) ~= 'function' then return method end
+        if type(method)~='function' or _isPlainMethod(theClass, methodName) then return method end
 
         return _getChainedMethod(theClass, methodName, method)
       end
