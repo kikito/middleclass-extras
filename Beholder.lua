@@ -4,9 +4,8 @@
 -- Small framework for event observers
 -----------------------------------------------------------------------------------
 
-assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it before using Callbacks')
+assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it before using Beholder')
 assert(Sender~=nil, 'The Beholder module requires the Sender module in order to work. Please require Sender before requiring Beholder')
-
 
 --[[ Usage:
 
