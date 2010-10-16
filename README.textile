@@ -6,9 +6,9 @@ h1. Module brief description
 
 What follows is a brief description of each of the middleclass-extras modules. Each nodule is commented out with usage examples. You can find more examples on the /spec/ folder.
 
-* *Sender* is a very small mixin that can be used to 'send' methods to instances. It's main advantage is that it accepts both method names and lua functions on its parameters.
+* *Invoker* is a very small mixin that can be used to 'send' methods to instances. It's main advantage is that it accepts both method names and lua functions on its parameters.
 * *GetterSetter* just adds a couple convenience getXXX, setXXX methods to your class.
-* *Beholder* is a small signaling/event controller mixin. Your classes can 'observe' and 'stop observing' events. Note that *Sender* must be required before *Beholder*, or the later will not work.
+* *Beholder* is a small signaling/event controller mixin. Your classes can 'observe' and 'stop observing' events. Note that *Invoker* must be required before *Beholder*, or the later will not work.
 * *Callbacks* is a powerful mixin that allows you to add 'hooks' to any existing method. For example, you can specify on runtime that you want to call a method after initializing one object.
 * *Mindstate* defines stateful objects. Classes receive a new method called @addState@, and instances receive a new method called @gotoState@. The behaviour of each of the instance methods can be redefined per-state.
 
