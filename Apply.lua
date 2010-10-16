@@ -5,8 +5,8 @@
 -----------------------------------------------------------------------------------
 
 assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it before using Apply')
-assert(Sender~=nil, 'The Apply module requires the Sender module in order to work. Please require Sender before requiring Apply')
-assert(Callbacks~=nil, 'The Apply module requires the Callbacks module in order to work. Please require Sender before requiring Apply')
+assert(Invoker~=nil, 'The Apply module requires the Invoker module in order to work. Please require Invoker before requiring Apply')
+assert(Callbacks~=nil, 'The Apply module requires the Callbacks module in order to work. Please require Invoker before requiring Apply')
 
 -- Private stuff
 _instances = {}
@@ -44,7 +44,7 @@ end
 -- Applies some method to all the instances of this class (not subclasses)
 function Apply.apply(theClass, methodOrName, ...)
   for _,instance in pairs(_instances[theClass]) do
-    if(Sender.send(instance, methodOrName, ...) == false) then return end
+    if(Invoker.invoke(instance, methodOrName, ...) == false) then return end
   end
 end
 

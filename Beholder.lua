@@ -5,7 +5,7 @@
 -----------------------------------------------------------------------------------
 
 assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it before using Beholder')
-assert(Sender~=nil, 'The Beholder module requires the Sender module in order to work. Please require Sender before requiring Beholder')
+assert(Invoker~=nil, 'The Beholder module requires the Invoker module in order to work. Please require Invoker before requiring Beholder')
 
 --[[ Usage:
 
@@ -165,7 +165,7 @@ function Beholder.trigger(eventId, ...)
       for k,v in ipairs(action.params) do params[k] = v end
       for _,v in ipairs({...}) do table.insert(params, v) end
       
-      Sender.send(object, action.method, unpack(params))
+      Invoker.invoke(object, action.method, unpack(params))
     end
   end
 end
