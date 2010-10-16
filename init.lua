@@ -1,5 +1,5 @@
 local modules = {
- 'middleclass.MiddleClass', 'Sender', 'GetterSetter', 'Callbacks', 'Apply', 'Beholder', 'MindState'
+ 'middleclass.MiddleClass', 'Invoker', 'GetterSetter', 'Callbacks', 'Apply', 'Beholder', 'MindState'
 }
 
 for _,module in ipairs(modules) do
