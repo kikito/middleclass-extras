@@ -5,7 +5,6 @@
 -----------------------------------------------------------------------------------
 
 assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it before using Callbacks')
-assert(Sender~=nil, 'The Callbacks module requires the Sender module in order to work. Please require Sender before requiring Callbacks')
 
 --[[ Usage:
 
@@ -15,17 +14,18 @@ assert(Sender~=nil, 'The Callbacks module requires the Sender module in order to
   MyClass = class('MyClass')
   MyClass:include(Callbacks)
 
-  -- This means: on MyClass instances, every time the user writes obj:foo(),
-  --   * obj:bar() must be executed before
-  --   * The function must be executed after
-  MyClass:addCallbackAround('foo', 'bar', function() print('baz') end)
+  -- This means:
+  --   * obj:bar() must be executed before before foo as a callback
+  --   * The function must be executed after after foo
+  MyClass:addCallback('before', 'bar', 'foo')
+  MyClass:addCallback('after', 'bar', function() print('baz') end)
 
   function MyClass:foo() print 'foo' end
   function MyClass:bar() print 'bar' end
 
   local obj = MyClass:new()
 
-  obj:foo() -- prints 'bar foo baz'
+  obj:invokeWithCallbacks('bar') -- prints 'foo bar baz'
 ]]
 
 --------------------------------
@@ -95,9 +95,8 @@ Format:
   { method='m4', params={'foo'} }
 }
 ]]
-local function _getActions(theClass, methodName)
-  if theClass==nil then return {} end
-  
+local function _getActions(instance, methodName)
+  local theClass = instance.class
   local before, after = {}, {}
   
   while theClass~=nil do
@@ -112,38 +111,12 @@ local function _getActions(theClass, methodName)
   return before, after
 end
 
--- given a class and a method, this returns a new version of that method that invokes callbacks
--- uses a cache for not calculating the methods every time
-function _getChainedMethod(theClass, methodName, method)
-
-  _methodCache[theClass] = _methodCache[theClass] or setmetatable({}, {__mode = "k"})
-  local classCache = _methodCache[theClass]
-  
-  local chainedMethod = classCache[methodName]
-  
-  if chainedMethod == nil then
-    chainedMethod = function(instance, ...)
-      local before, after = _getActions(theClass, methodName)
-      if _invokeActions(instance, before) == false then return false end
-      local result = method(instance, ...)
-      if _invokeActions(instance, after) == false then return false end
-      return result
-    end
-    classCache[methodName] = chainedMethod
-  end
-
-  return chainedMethod
-end
-
--- private instance methods
-
 function _invokeActions(instance, actions)
+  if actions == nil then return end
   for _,action in ipairs(actions) do
-    if Sender.send(instance, action.method, unpack(action.params)) == false then return false end
+    if instance:invokeWithCallbacks(action.method, unpack(action.params)) == false then return false end
   end
-  return true
 end
-
 
 --------------------------------
 --      PUBLIC STUFF
@@ -151,44 +124,7 @@ end
 
 Callbacks = {}
 
-function Callbacks:included(theClass)
-
-  if includes(Callbacks, theClass) then return end
-
-  -- Modify the instances __index metamethod so it adds callback chains to methods with callback entries
-
-  local oldNew = theClass.new
-  
-  theClass.new = function(theClass, ...)
-    local instance = oldNew(theClass, ...)
-
-    local prevIndex = getmetatable(instance).__index
-    local tIndex = type(prevIndex)
-
-    setmetatable(instance, {
-      __index = function(instance, methodName)
-        local method
-
-        if     tIndex == 'table'    then method = prevIndex[methodName]
-        elseif tIndex == 'function' then method = prevIndex(instance, methodName)
-        end
-
-        if type(method)~='function' or _isPlainMethod(theClass, methodName) then return method end
-
-        return _getChainedMethod(theClass, methodName, method)
-      end
-    })
-
-    -- special treatment for afterInitialize callbacks
-    local _, afterInitialize = _getActions(theClass, 'initialize')
-    _invokeActions(instance, afterInitialize)
-
-    return instance
-  end
- 
-end
-
---[[
+--[[ addCallbacks class method
 Usage:
 
     Actor:addCallback('before', 'update', 'doSomething', 1, 2)
@@ -211,6 +147,65 @@ function Callbacks.addCallback(theClass, beforeOrAfter, methodName, callback, ..
   local entry = _getOrCreateEntry(theClass, methodName)
 
   table.insert(entry[beforeOrAfter], {method = callback, params = {...}})
+end
+
+--[[ invokeWithCallbacks method
+Usage:
+    Actor:addCallback('before', 'update', 'foo', 1, 2)
+    Actor:addCallback('after', 'update', 'bar', 3, 4)
+
+    local actor = Actor:new()
+
+    local actor:invokeWithCallbacks('update', dt)
+
+This method will invoke:
+  1. The callbacks that where added 'before' update. In this case, actor:foo(1,2)
+  2. The update method itself
+  3. The callbacks that where added 'after' update. In this case, actor:bar(3,4)
+
+Notes:
+  * If any of the callbacks returns false, the execution is halted and the method returns false.
+  * Otherwise, this method returns what actor:update(dt) returns
+  * Callbacks with other callbacks attached will also be executed
+]]
+function Callbacks:invokeWithCallbacks(functionOrName, ...)
+  if type(functionOrName)=='function' then return functionOrName(self, ...)
+  elseif type(functionOrName)=='string' then
+    local before, after = _getActions(self, functionOrName)
+    if _invokeActions(self, before) == false then return false end
+    local result = self[functionOrName](self, ...)
+    if _invokeActions(self, after) == false then return false end
+    return result
+  else
+    error('functionOrName must be either a string or a function. Was a ' .. type(functionOrName))
+  end
+end
+
+
+--[[ newWithCallbacks class method
+Usage:
+    Actor:addCallback('after', 'initialize', 'baz', 'a', 'b')
+
+    actor = Actor:newWithCallbacks()
+
+This will invoke:
+  1. The normal Actor:new
+  2. Any callbacks inserted 'after', 'initialize'
+
+Notes:
+  * Callbacks inserted 'before' initialize will be ignored
+  * Callbacks can have more callbacks attached
+  * If any callback returns false, this method returns false. Otherwise it returns the new instance.
+]]
+
+function Callbacks.newWithCallbacks(theClass, ...)
+  local instance = theClass:new(...)
+
+    -- special treatment for afterInitialize callbacks
+  local _, after = _getActions(instance, 'initialize')
+  if _invokeActions(instance, after) == false then return false end
+
+  return instance
 end
 
 
