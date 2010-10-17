@@ -124,6 +124,19 @@ end
 
 Callbacks = {}
 
+function Callbacks:included(theClass)
+  local oldNew = theClass.new
+  
+  theClass.new = function(theClass2, ...)
+    local instance = oldNew(theClass2, ...)
+    
+    local _, after = _getActions(instance, 'initialize')
+    _invokeActions(instance, after)
+    
+    return instance
+  end
+end
+
 --[[ addCallbacks class method
 Usage:
 
@@ -179,33 +192,6 @@ function Callbacks:invokeWithCallbacks(functionOrName, ...)
   else
     error('functionOrName must be either a string or a function. Was a ' .. type(functionOrName))
   end
-end
-
-
---[[ newWithCallbacks class method
-Usage:
-    Actor:addCallback('after', 'initialize', 'baz', 'a', 'b')
-
-    actor = Actor:newWithCallbacks()
-
-This will invoke:
-  1. The normal Actor:new
-  2. Any callbacks inserted 'after', 'initialize'
-
-Notes:
-  * Callbacks inserted 'before' initialize will be ignored
-  * Callbacks can have more callbacks attached
-  * If any callback returns false, this method returns false. Otherwise it returns the new instance.
-]]
-
-function Callbacks.newWithCallbacks(theClass, ...)
-  local instance = theClass:new(...)
-
-    -- special treatment for afterInitialize callbacks
-  local _, after = _getActions(instance, 'initialize')
-  if _invokeActions(instance, after) == false then return false end
-
-  return instance
 end
 
 

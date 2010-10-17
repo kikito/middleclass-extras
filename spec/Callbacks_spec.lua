@@ -94,7 +94,7 @@ context( 'Callbacks', function()
       defineRegularMethods(A)
       A:include(Callbacks)
       A:addCallback('after', 'initialize', 'foo')
-      assert_equal(A:newWithCallbacks().calls[1], 'foo')
+      assert_equal(A:new().calls[1], 'foo')
     end)
   end)
 
