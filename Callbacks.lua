@@ -4,8 +4,8 @@
 -- Mixin that adds callbacks support (i.e. beforeXXX or afterYYY) to classes)
 -----------------------------------------------------------------------------------
 
-assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it before using Callbacks')
-
+assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it before requiring Callbacks')
+assert(Invoker~=nil, 'Invoker not detected. Please require it before requiring Callbacks')
 --[[ Usage:
 
   require 'MiddleClass' -- or similar
@@ -14,18 +14,21 @@ assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it 
   MyClass = class('MyClass')
   MyClass:include(Callbacks)
 
-  -- This means:
-  --   * obj:bar() must be executed before before foo as a callback
-  --   * The function must be executed after after foo
+  -- The following lines create a new method called barWithCallbacks. When executing it:
+  --   * obj:foo() will be executed before
+  --   * obj:bar() will be executed in the middle
+  --   * The function must be executed after bar, printing 'baz'
   MyClass:addCallback('before', 'bar', 'foo')
   MyClass:addCallback('after', 'bar', function() print('baz') end)
+
+  -- It is possible to add more callbacks before or after a given method.
 
   function MyClass:foo() print 'foo' end
   function MyClass:bar() print 'bar' end
 
   local obj = MyClass:new()
 
-  obj:invokeWithCallbacks('bar') -- prints 'foo bar baz'
+  obj:barWithCallbacks() -- prints 'foo bar baz'
 ]]
 
 --------------------------------
@@ -112,9 +115,8 @@ local function _getActions(instance, methodName)
 end
 
 function _invokeActions(instance, actions)
-  if actions == nil then return end
   for _,action in ipairs(actions) do
-    if instance:invokeWithCallbacks(action.method, unpack(action.params)) == false then return false end
+    if Invoker.invoke(instance, action.method, unpack(action.params)) == false then return false end
   end
 end
 
@@ -160,37 +162,18 @@ function Callbacks.addCallback(theClass, beforeOrAfter, methodName, callback, ..
   local entry = _getOrCreateEntry(theClass, methodName)
 
   table.insert(entry[beforeOrAfter], {method = callback, params = {...}})
-end
+  
+  local methodWithCallbacksName = methodName .. 'WithCallbacks'
+  
+  if type(theClass[methodWithCallbacksName]) ~= 'function' then
+    theClass[methodWithCallbacksName] = function(instance, ...)
+      local before, after = _getActions(instance, methodName)
 
---[[ invokeWithCallbacks method
-Usage:
-    Actor:addCallback('before', 'update', 'foo', 1, 2)
-    Actor:addCallback('after', 'update', 'bar', 3, 4)
-
-    local actor = Actor:new()
-
-    local actor:invokeWithCallbacks('update', dt)
-
-This method will invoke:
-  1. The callbacks that where added 'before' update. In this case, actor:foo(1,2)
-  2. The update method itself
-  3. The callbacks that where added 'after' update. In this case, actor:bar(3,4)
-
-Notes:
-  * If any of the callbacks returns false, the execution is halted and the method returns false.
-  * Otherwise, this method returns what actor:update(dt) returns
-  * Callbacks with other callbacks attached will also be executed
-]]
-function Callbacks:invokeWithCallbacks(functionOrName, ...)
-  if type(functionOrName)=='function' then return functionOrName(self, ...)
-  elseif type(functionOrName)=='string' then
-    local before, after = _getActions(self, functionOrName)
-    if _invokeActions(self, before) == false then return false end
-    local result = self[functionOrName](self, ...)
-    if _invokeActions(self, after) == false then return false end
-    return result
-  else
-    error('functionOrName must be either a string or a function. Was a ' .. type(functionOrName))
+      if _invokeActions(instance, before) == false then return false end
+      local result = instance[methodName](instance, ...)
+      if _invokeActions(instance, after) == false then return false end
+      return result
+    end
   end
 end
 

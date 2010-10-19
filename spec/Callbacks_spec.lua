@@ -25,7 +25,7 @@ context( 'Callbacks', function()
   
   local function testInstance(theClass)
     local obj = theClass:new()
-    obj:invokeWithCallbacks('bar')
+    obj:barWithCallbacks()
 
     assert_equal(obj.calls[1], 'foo')
     assert_equal(obj.calls[2], 'bar')
@@ -78,7 +78,7 @@ context( 'Callbacks', function()
       defineRegularMethods(A)
       addCallbacks(B)
       local obj = B:new()
-      obj:invokeWithCallbacks('bar')
+      obj:barWithCallbacks()
 
       assert_equal(obj.calls[1], 'foo')
       assert_equal(obj.calls[2], 'foo')
