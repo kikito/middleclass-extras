@@ -29,11 +29,15 @@ context( 'Apply', function()
     local obj1 = MyClass:new()
     local obj2 = MyClass:new()
     
+    local function initialize()
+      MyClass:apply('destroyWithCallbacks') -- destroy all objects
+      obj1 = MyClass:new()
+      obj2 = MyClass:new()
+      list = {}
+    end
+
     context('When invoking apply', function()
-      before(function()
-        obj1.counter = 0
-        obj2.counter = 0
-      end)
+      before(initialize)
       test('It should work with a method name', function()
         MyClass:apply('count', 1)
         assert_equal(obj1.counter, 1)
@@ -49,12 +53,23 @@ context( 'Apply', function()
         assert_equal(obj1.counter, 1)
         assert_equal(obj2.counter, 1)
       end)
-      test('It should allow removing objects from inside the call', function()
-        --TODO
+      test('It should allow removing objects from inside the apply call', function()
+        local obj4 = MyClass:new()
+        MyClass:apply('addToList')
+        local n=#list
+        MyClass:apply( function(obj)
+          if obj==obj4 then
+            obj:destroyWithCallbacks()
+          end
+        end)
+        list = {}
+        MyClass:apply('addToList')
+        assert_equal(#list, n-1)
       end)
     end)
     
     context('When invoking applySorted', function()
+      before(initialize)
       test('It should sort the instances properly before executing', function()
         obj1.counter = 1
         obj2.counter = 2
@@ -70,16 +85,47 @@ context( 'Apply', function()
     end)
     
     context('When destroying elements', function()
+      before(initialize)
+      local function testDestroy(methodName)
+        local obj5 = MyClass:new()
+        MyClass:apply('addToList')
+        local n = #list
+        obj5[methodName](obj5)
+        list = {}
+        MyClass:apply('addToList')
+        assert_equal(#list, n-1)
+      end
+      
       test('DestroyWithCallbacks should remove instances from the list of objects', function()
-        --TODO
+        testDestroy('destroyWithCallbacks')
       end)
       test('Explicit call of removeFromApply should also work', function()
-        --TODO
+        testDestroy('removeFromApply')
       end)
     end)
     
     context('When subclassing', function()
-      --TODO
+      before(initialize)
+      local MySubClass = class('MySubClass', MyClass)
+
+      test('Apply on a superclass should include the instances of a subclass, but not viceversa', function()
+        MyClass:apply('addToList')
+        local n = #list
+        
+        local subobj = MySubClass:new()
+        list = {}
+        MyClass:apply('addToList')
+        assert_equal(#list, n+1)
+        
+        list = {}
+        MySubClass:apply('addToList')
+        assert_equal(#list, 1)
+        
+        list = {}
+        subobj:destroyWithCallbacks()
+        MyClass:apply('addToList')
+        assert_equal(#list, n)
+      end)
     end)
   
   end)

@@ -88,7 +88,7 @@ end
 -- Applies some method to all the instances of this class, including subclasses
 -- Notes:
 --   * sortFunc can be provided as a meaning of sorting (table.sort will be used)
---   * a copy of the instances table is allways made so it is safe to call removeFromApply
+--   * a copy of the instances table is always made so calling removeFromApply is safe inside apply
 function Apply.applySorted(theClass, sortFunc, methodOrName, ...)
 
   local copy,i = {},1
