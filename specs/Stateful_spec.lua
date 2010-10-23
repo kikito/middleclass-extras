@@ -1,19 +1,20 @@
 require('middleclass-extras.init')
 
-context( 'StatefulObject', function()
+context( 'Stateful', function()
 
 
-  context('A State', function()
+  context('State', function()
 
     test('should require 3 parameters when subclassed', function()
-      assert_error(function() State:subclass() end)
-      assert_error(function() State:subclass('meh') end)
+      assert_error(function() Stateful.State:subclass() end)
+      assert_error(function() Stateful.State:subclass('meh') end)
     end)
       
     test('Super calls should work correctly', function()
-      local SuperClass = class('SuperClass', StatefulObject)
+      local SuperClass = class('SuperClass')
+      SuperClass:include(Stateful)
       function SuperClass:foo() return 'foo' end
-      
+
       local RootClass = class('RootClass', SuperClass)
 
       local State1 = RootClass:addState('State1')
@@ -34,7 +35,8 @@ context( 'StatefulObject', function()
   end)
 
   context('A stateful class', function()
-    local Warrior = class('Warrior', StatefulObject)
+    local Warrior = class('Warrior')
+    Warrior:include(Stateful)
     local WarriorIddle, WarriorWalking
 
     context('When adding a new state', function()
@@ -67,7 +69,8 @@ context( 'StatefulObject', function()
     
     context('When subclassing', function()
 
-      local Vehicle = class('Vehicle', StatefulObject)
+      local Vehicle = class('Vehicle')
+      Vehicle:include(Stateful)
       Vehicle:addState('Parked')
       function Vehicle.states.Parked:getStatus() return 'stopped' end
 
@@ -85,7 +88,8 @@ context( 'StatefulObject', function()
     end)
     
     context('When including a mixin', function()
-      local Class1 = class('Class1', StatefulObject)
+      local Class1 = class('Class1')
+      Class1:include(Stateful)
 
       local State1 = Class1:addState('State1')
       function State1:foo() return 'state1' end
@@ -117,7 +121,7 @@ context( 'StatefulObject', function()
       end)
       
       test('should have new states', function()
-        assert_true(subclassOf(State, Class1.states.State2))
+        assert_true(subclassOf(Stateful.State, Class1.states.State2))
         obj:gotoState('State2')
         assert_equal(obj:foo(), 'state2')
       end)
@@ -135,7 +139,8 @@ context( 'StatefulObject', function()
 
   context('A stateful instance', function()
 
-    local Enemy = class('Enemy', StatefulObject)
+    local Enemy = class('Enemy')
+    Enemy:include(Stateful)
     function Enemy:getStatus() return 'none' end
 
     local EnemyIddle = Enemy:addState('Iddle')
@@ -172,7 +177,9 @@ context( 'StatefulObject', function()
         assert_error(function() albert:gotoState('Sleeping') end)
       end)
       test('should be able to go to the nil-state', function()
-        assert_not_error(function() albert:gotoState(nil) end)
+        --assert_not_error(function() 
+        albert:gotoState(nil)
+        --end)
         assert_equal(albert:getStatus(), 'none')
       end)
       test('enterState callbacks should be called, if existing', function()
