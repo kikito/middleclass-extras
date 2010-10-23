@@ -350,6 +350,7 @@ function Stateful:included(theClass)
         state:include(moduleState, ...)
       end
     end
+    return theClass
   end
 
 end

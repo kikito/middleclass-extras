@@ -11,8 +11,7 @@ context( 'Stateful', function()
     end)
       
     test('Super calls should work correctly', function()
-      local SuperClass = class('SuperClass')
-      SuperClass:include(Stateful)
+      local SuperClass = class('SuperClass'):include(Stateful)
       function SuperClass:foo() return 'foo' end
 
       local RootClass = class('RootClass', SuperClass)
@@ -35,8 +34,7 @@ context( 'Stateful', function()
   end)
 
   context('A stateful class', function()
-    local Warrior = class('Warrior')
-    Warrior:include(Stateful)
+    local Warrior = class('Warrior'):include(Stateful)
     local WarriorIddle, WarriorWalking
 
     context('When adding a new state', function()
@@ -69,8 +67,7 @@ context( 'Stateful', function()
     
     context('When subclassing', function()
 
-      local Vehicle = class('Vehicle')
-      Vehicle:include(Stateful)
+      local Vehicle = class('Vehicle'):include(Stateful)
       Vehicle:addState('Parked')
       function Vehicle.states.Parked:getStatus() return 'stopped' end
 
@@ -88,8 +85,7 @@ context( 'Stateful', function()
     end)
     
     context('When including a mixin', function()
-      local Class1 = class('Class1')
-      Class1:include(Stateful)
+      local Class1 = class('Class1'):include(Stateful)
 
       local State1 = Class1:addState('State1')
       function State1:foo() return 'state1' end
@@ -139,8 +135,7 @@ context( 'Stateful', function()
 
   context('A stateful instance', function()
 
-    local Enemy = class('Enemy')
-    Enemy:include(Stateful)
+    local Enemy = class('Enemy'):include(Stateful)
     function Enemy:getStatus() return 'none' end
 
     local EnemyIddle = Enemy:addState('Iddle')
