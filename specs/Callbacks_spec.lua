@@ -97,6 +97,21 @@ context( 'Callbacks', function()
       assert_equal(A:new().calls[1], 'foo')
     end)
   end)
+  
+  context('When destroying an instance', function()
+    test('before and afterDestroy callbacks should be called', function()
+      defineRegularMethods(A)
+      A:include(Callbacks)
+      A:addCallback('before', 'destroy', 'foo')
+      A:addCallback('after', 'destroy', 'bar')
+      
+      local a = A:new()
+      a:destroy()
+      
+      assert_equal(a.calls[1], 'foo')
+      assert_equal(a.calls[2], 'bar')
+    end)
+  end)
 
 
 end)

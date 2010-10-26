@@ -30,7 +30,7 @@ context( 'Apply', function()
     local obj2 = MyClass:new()
     
     local function initialize()
-      MyClass:apply('destroyWithCallbacks') -- destroy all objects
+      MyClass:apply('destroy') -- destroy all objects
       obj1 = MyClass:new()
       obj2 = MyClass:new()
       list = {}
@@ -42,11 +42,6 @@ context( 'Apply', function()
         MyClass:apply('count', 1)
         assert_equal(obj1.counter, 1)
         assert_equal(obj2.counter, 1)
-        local obj3 = MyClass:new()
-        MyClass:apply('count', 1)
-        assert_equal(obj1.counter, 2)
-        assert_equal(obj3.counter, 1)
-        obj3:destroyWithCallbacks()
       end)
       test('It should work with a function', function()
         MyClass:apply(function(obj, c) obj:count(c) end, 1)
@@ -57,10 +52,8 @@ context( 'Apply', function()
         local obj4 = MyClass:new()
         MyClass:apply('addToList')
         local n=#list
-        MyClass:apply( function(obj)
-          if obj==obj4 then
-            obj:destroyWithCallbacks()
-          end
+        MyClass:apply(function(obj)
+          if obj==obj4 then obj:destroy() end
         end)
         list = {}
         MyClass:apply('addToList')
@@ -86,22 +79,17 @@ context( 'Apply', function()
     
     context('When destroying elements', function()
       before(initialize)
-      local function testDestroy(methodName)
+
+      test('Destroy should remove instances from the list of objects', function()
         local obj5 = MyClass:new()
         MyClass:apply('addToList')
         local n = #list
-        obj5[methodName](obj5)
+        obj5:destroy()
         list = {}
         MyClass:apply('addToList')
         assert_equal(#list, n-1)
-      end
-      
-      test('DestroyWithCallbacks should remove instances from the list of objects', function()
-        testDestroy('destroyWithCallbacks')
       end)
-      test('Explicit call of removeFromApply should also work', function()
-        testDestroy('removeFromApply')
-      end)
+
     end)
     
     context('When subclassing', function()
@@ -122,7 +110,7 @@ context( 'Apply', function()
         assert_equal(#list, 1)
         
         list = {}
-        subobj:destroyWithCallbacks()
+        subobj:destroy()
         MyClass:apply('addToList')
         assert_equal(#list, n)
       end)

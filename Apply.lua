@@ -14,20 +14,12 @@ assert(Invoker~=nil, 'The Apply module requires the Invoker module in order to w
 
   MyClass = class('MyClass')
   MyClass:includes(Apply)
-  
+
   function MyClass:initialize()
     super.initialize(self)
     self.counter = 0
-  end
-  
-  function MyClass:destroy()
-     -- Remove from the list immediately, instead of waiting for the gc
-    self:removeFromApply()
-    super.destroy(self)
-  end
-  
-  -- If you use object:destroyWithCallbacks() instead of object:destroy() removeFromApply will be used automatically
-  
+  end -- the instance will be automatically added to the list here (after initialize)
+
   function MyClass:count() self.counter = self.counter + 1  end
   
   local obj1 = MyClass:new()
@@ -40,12 +32,15 @@ assert(Invoker~=nil, 'The Apply module requires the Invoker module in order to w
   
   print(obj1, obj2) -- prints 2   1
   
+  -- instances will be automatically removed from the list after invoking destroy (obj1:destroy() or obj2:destroy())
+  
   
 ]]
 
 
--- Private stuff
-
+--------------------------------
+--      PRIVATE STUFF
+--------------------------------
 
 -- The list of instances
 _instances = {}
@@ -65,20 +60,12 @@ local function _remove(theClass, instance)
   if _instances[theClass] ~= nil then _instances[theClass][instance] = nil end
 end
 
+--------------------------------
+--      PUBLIC STUFF
+--------------------------------
+
 -- The Apply module
 Apply = {}
-
-function Apply:included(theClass)
-  if not includes(Callbacks, theClass) then
-    theClass:include(Callbacks)
-  end
-  theClass:addCallback('after', 'initialize', function(instance) _add(instance.class, instance) end)
-  theClass:addCallback('after', 'destroy', 'removeFromApply')
-end
-
-function Apply:removeFromApply()
-  _remove(self.class, self)
-end
 
 -- Applies some method to all the instances of this class, including subclasses
 function Apply.apply(theClass, methodOrName, ...)
@@ -87,7 +74,7 @@ end
 
 -- Applies some method to all the instances of this class, including subclasses
 -- Notes:
---   * sortFunc can be provided as a meaning of sorting (table.sort will be used)
+--   * sortFunc can be provided as a meaning of sorting (table.sort will be used). Can be nil (no order)
 --   * a copy of the instances table is always made so calling removeFromApply is safe inside apply
 function Apply.applySorted(theClass, sortFunc, methodOrName, ...)
 
@@ -105,6 +92,19 @@ function Apply.applySorted(theClass, sortFunc, methodOrName, ...)
     if Invoker.invoke(instance, methodOrName, ...) == false then return false end
   end
   return true
+end
+
+--------------------------------
+--      INCLUDED
+--------------------------------
+
+-- modifies the class that includes this module. For internal use only.
+function Apply:included(theClass)
+  if not includes(Callbacks, theClass) then
+    theClass:include(Callbacks)
+  end
+  theClass:addCallback('after', 'initialize', function(instance) _add(instance.class, instance) end)
+  theClass:addCallback('after', 'destroy', function(instance) _remove(instance.class, instance) end)
 end
 
 

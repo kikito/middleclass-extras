@@ -78,13 +78,6 @@ local function _getOrCreateEntry(theClass, methodName)
   return _entries[theClass][methodName]
 end
 
--- returns true only if there is the method has no entries on theClass or any of theClass' superclasses
-local function _isPlainMethod(theClass, methodName)
-  if theClass == nil then return true end
-  if _entries[theClass] ~= nil and _entries[theClass][methodName] ~= nil then return false end
-  return _isPlainMethod(theClass.superclass, methodName)
-end
-
 --[[
 Returns all the actions that should be called when a callback is invoked, parsing superclasses
 Warning: it returns two separate lists
@@ -120,6 +113,45 @@ function _invokeActions(instance, actions)
   end
 end
 
+local function _buildMethodWithCallbacks(methodName, previousMethod)
+  return function(instance, ...)
+    local before, after = _getActions(instance, methodName)
+    local result = nil
+    if _invokeActions(instance, before) == false then return false end
+    if previousMethod == nil then
+      result = { instance[methodName](instance, ...) }
+    else
+      result = { previousMethod(instance, ...) }
+    end
+    if _invokeActions(instance, after) == false then return false end
+    return unpack(result)
+  end
+end
+
+local function _addCallbacksToDestroy(theClass)
+  -- modify __newindex so it adds callbacks to destroy automatically
+  local mt = getmetatable(theClass)
+  local prev__newindex = mt.__newindex
+  mt.__newindex = function(_, methodName, method)
+    prev__newindex(theClass, methodName, method)
+    if methodName=='destroy' and type(method)=='function' then
+      method = rawget(theClass.__classDict, 'destroy')
+      local newMethod = _buildMethodWithCallbacks(methodName, method)
+      rawset(theClass.__classDict, 'destroy', newMethod)
+    end
+  end
+
+  -- re-set destroy so by default it has callbacks
+  local existingMethod = rawget(theClass.__classDict, 'destroy')
+  if existingMethod == nil then
+    existingMethod = function(self)
+      super.destroy(self)
+    end
+  end
+  
+  theClass.destroy = existingMethod
+end
+
 --------------------------------
 --      PUBLIC STUFF
 --------------------------------
@@ -129,6 +161,7 @@ Callbacks = {}
 function Callbacks:included(theClass)
   local oldNew = theClass.new
   
+  -- add special treatment for initialize
   theClass.new = function(theClass2, ...)
     local instance = oldNew(theClass2, ...)
     
@@ -137,6 +170,18 @@ function Callbacks:included(theClass)
     
     return instance
   end
+
+  --add special treatment for destroy on the class itself
+  _addCallbacksToDestroy(theClass)
+
+  --add special treatment for destroy on subclasses
+  local prevSubclass = theClass.subclass
+  theClass.subclass = function(aClass, name, ...)
+    local theSubClass = prevSubclass(aClass, name, ...)
+    _addCallbacksToDestroy(theSubClass)
+    return theSubClass
+  end
+
 end
 
 --[[ addCallbacks class method
@@ -162,17 +207,12 @@ function Callbacks.addCallback(theClass, beforeOrAfter, methodName, callback, ..
   local entry = _getOrCreateEntry(theClass, methodName)
 
   table.insert(entry[beforeOrAfter], {method = callback, params = {...}})
-  
-  local methodWithCallbacksName = methodName .. 'WithCallbacks'
-  
-  if type(theClass[methodWithCallbacksName]) ~= 'function' then
-    theClass[methodWithCallbacksName] = function(instance, ...)
-      local before, after = _getActions(instance, methodName)
 
-      if _invokeActions(instance, before) == false then return false end
-      local result = instance[methodName](instance, ...)
-      if _invokeActions(instance, after) == false then return false end
-      return result
+  if methodName~='initialize' and methodName~='destroy' then
+    local methodWithCallbacksName = methodName .. 'WithCallbacks'
+
+    if type(theClass[methodWithCallbacksName]) ~= 'function' then
+      theClass[methodWithCallbacksName] = _buildMethodWithCallbacks(methodName)
     end
   end
 end
