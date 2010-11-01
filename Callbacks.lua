@@ -14,21 +14,19 @@ assert(Invoker~=nil, 'Invoker not detected. Please require it before requiring C
   MyClass = class('MyClass')
   MyClass:include(Callbacks)
 
-  -- The following lines create a new method called barWithCallbacks. When executing it:
-  --   * obj:foo() will be executed before
-  --   * obj:bar() will be executed in the middle
-  --   * The function must be executed after bar, printing 'baz'
-  MyClass:addCallback('before', 'bar', 'foo')
-  MyClass:addCallback('after', 'bar', function() print('baz') end)
-
-  -- It is possible to add more callbacks before or after a given method.
-
   function MyClass:foo() print 'foo' end
   function MyClass:bar() print 'bar' end
 
+  -- The following lines modify method bar so:
+  MyClass:before('bar', 'foo') -- foo is executed before
+  MyClass:after('bar', function() print('baz') end) -- a function invoking bar is executed after
+
   local obj = MyClass:new()
 
-  obj:barWithCallbacks() -- prints 'foo bar baz'
+  obj:bar() -- prints 'foo bar baz'
+  obj:barWithoutCallbacks() -- prints 'bar'
+
+  -- It is possible to add more callbacks before or after any method
 ]]
 
 --------------------------------
@@ -46,19 +44,18 @@ assert(Invoker~=nil, 'Invoker not detected. Please require it before requiring C
           { method = m1, params={} },
           { method = m2, params={'blah', 'bleh'} },
           { method = m3, params={'foo', 'bar'} }
-        }
+        },
         after = {                           -- 'after' actions
           { method = 'm4', params={1,2} }
         }
+
       }
     }
   }
 
 ]]
 local _entries = setmetatable({}, {__mode = "k"}) -- weak table
-
--- cache for not re-creating methods every time they are needed
-local _methodCache = setmetatable({}, {__mode = "k"})
+local _methodCache = setmetatable({}, {__mode = "k"}) -- weak table
 
 -- private class methods
 
@@ -66,6 +63,12 @@ local function _getEntry(theClass, methodName)
   if  _entries[theClass] ~= nil and _entries[theClass][methodName] ~= nil then
     return _entries[theClass][methodName]
   end
+end
+
+local function _hasEntry(theClass, methodName)
+  if not includes(Callbacks, theClass) then return false end
+  if _getEntry(theClass, methodName) ~= nil then return true end
+  return _hasEntry(theClass.superclass, methodName)
 end
 
 local function _getOrCreateEntry(theClass, methodName)
@@ -107,50 +110,78 @@ local function _getActions(instance, methodName)
   return before, after
 end
 
+-- invokes the 'before' or 'after' actions obtained with _getActions
 function _invokeActions(instance, actions)
   for _,action in ipairs(actions) do
     if Invoker.invoke(instance, action.method, unpack(action.params)) == false then return false end
   end
 end
 
-local function _buildMethodWithCallbacks(methodName, previousMethod)
-  return function(instance, ...)
+-- returns a function that executes "method", but with before and after actions
+-- it also does some optimizations. It uses a cache, and returns the method itself when it
+-- doesn't have any entries on the entry list (hence no callbacks)
+local function _callbackizeMethod(theClass, methodName, method)
+
+  if type(method)~='function' or not _hasEntry(theClass, methodName) then return method end
+
+  _methodCache[theClass] = _methodCache[theClass] or {}
+  
+  _methodCache[theClass][method] = _methodCache[theClass][method] or function(instance, ...)
     local before, after = _getActions(instance, methodName)
-    local result = nil
+
     if _invokeActions(instance, before) == false then return false end
-    if previousMethod == nil then
-      result = { instance[methodName](instance, ...) }
-    else
-      result = { previousMethod(instance, ...) }
-    end
+
+    local result = { instance[methodName .. 'WithoutCallbacks'](instance, ...) }
+
     if _invokeActions(instance, after) == false then return false end
     return unpack(result)
   end
+  
+  return _methodCache[theClass][method]
 end
 
-local function _addCallbacksToDestroy(theClass)
-  -- modify __newindex so it adds callbacks to destroy automatically
-  local mt = getmetatable(theClass)
-  local prev__newindex = mt.__newindex
-  mt.__newindex = function(_, methodName, method)
-    prev__newindex(theClass, methodName, method)
-    if methodName=='destroy' and type(method)=='function' then
-      method = rawget(theClass.__classDict, 'destroy')
-      local newMethod = _buildMethodWithCallbacks(methodName, method)
-      rawset(theClass.__classDict, 'destroy', newMethod)
-    end
-  end
+-- modifies the __index function of a class dict so:
+--   * It returns callbackized versions of methods
+--   * It returns the un-callbackized version of method 'foo' when asked for 'fooWithoutCallbacks'
+local function _changeClassDict(theClass)
 
-  -- re-set destroy so by default it has callbacks
-  local existingMethod = rawget(theClass.__classDict, 'destroy')
-  if existingMethod == nil then
-    existingMethod = function(self)
-      super.destroy(self)
-    end
+  local classDict = theClass.__classDict
+  local prev__index = classDict.__index
+  local tpi = type(prev__index)
+  assert(tpi == 'function' or tpi == 'table', 'invalid type for an index; must be function or table, was ' .. tostring(tpi))
+  
+  local function searchOnPrevIndex(methodName)
+    if tpi == 'table' then return prev__index[methodName] end
+    return prev__index(classDict, methodName)
   end
   
-  theClass.destroy = existingMethod
+  classDict.__index = function(_, methodName)
+    -- obtain method normally
+    local method = searchOnPrevIndex(methodName)
+
+    -- method found. return it callbackized
+    if method ~= nil then return _callbackizeMethod(theClass, methodName, method) end
+
+    -- method not found. Try to return the version without callbacks
+    methodName = methodName:match('(.+)WithoutCallbacks')
+    if methodName~=nil then
+      return searchOnPrevIndex(methodName)
+    end
+  end
+
 end
+
+-- adds callbacks to a method. Used by addCallbacksBefore and addCallbacksAfter, below
+local function _addCallback( theClass, beforeOrAfter, methodName, callback, ...)
+  assert(type(methodName)=='string', 'methodName must be a string')
+  local tCallback = type(callback)
+  assert(tCallback == 'string' or tCallback == 'function', 'callback must be a method name or a function')
+
+  local entry = _getOrCreateEntry(theClass, methodName)
+
+  table.insert(entry[beforeOrAfter], {method = callback, params = {...}})
+end
+
 
 --------------------------------
 --      PUBLIC STUFF
@@ -159,62 +190,38 @@ end
 Callbacks = {}
 
 function Callbacks:included(theClass)
-  local oldNew = theClass.new
-  
-  -- add special treatment for initialize
-  theClass.new = function(theClass2, ...)
-    local instance = oldNew(theClass2, ...)
-    
-    local _, after = _getActions(instance, 'initialize')
-    _invokeActions(instance, after)
-    
-    return instance
-  end
+  if includes(Callbacks, theClass) then return end
 
-  --add special treatment for destroy on the class itself
-  _addCallbacksToDestroy(theClass)
+  -- change how __index works on the class itself
+  _changeClassDict(theClass)
 
-  --add special treatment for destroy on subclasses
+  -- change how __index works on on subclasses
   local prevSubclass = theClass.subclass
   theClass.subclass = function(aClass, name, ...)
     local theSubClass = prevSubclass(aClass, name, ...)
-    _addCallbacksToDestroy(theSubClass)
+    _changeClassDict(theSubClass)
     return theSubClass
   end
 
 end
 
---[[ addCallbacks class method
-Usage:
+--[[ before class method
+Usage (the following two are equivalent):
 
-    Actor:addCallback('before', 'update', 'doSomething', 1, 2)
+    Actor:before('update', 'doSomething', 1, 2)
+    Actor:before('update', function(actor, x,y) actor:doSomething(x,y) end, 1, 2)
 
-Also valid:
-
-    Actor:addCallback('before', 'update', function(actor, x,y) actor:doSomething(x,y) end, 1, 2)
-
-First parameter must be the string 'before' or the string 'after'
-methodName must be a string designatign a method (can be non-existing)
-callback can be either a method name or a function
-Note: before initialize callbacks will never be executed (after initialize will)
+  * methodName must be a string designatign a method (can be non-existing)
+  * callback can be either a method name or a function
 ]]
-function Callbacks.addCallback(theClass, beforeOrAfter, methodName, callback, ...)
-  assert(type(methodName)=='string', 'methodName must be a string')
-  assert(beforeOrAfter == 'before' or beforeOrAfter == 'after', 'beforeOrAfter must be either "before" or "after"')
-  local tCallback = type(callback)
-  assert(tCallback == 'string' or tCallback == 'function', 'callback must be a method name or a function')
-
-  local entry = _getOrCreateEntry(theClass, methodName)
-
-  table.insert(entry[beforeOrAfter], {method = callback, params = {...}})
-
-  if methodName~='initialize' and methodName~='destroy' then
-    local methodWithCallbacksName = methodName .. 'WithCallbacks'
-
-    if type(theClass[methodWithCallbacksName]) ~= 'function' then
-      theClass[methodWithCallbacksName] = _buildMethodWithCallbacks(methodName)
-    end
-  end
+function Callbacks.before(theClass, methodName, callback, ...)
+  _addCallback( theClass, 'before', methodName, callback, ... )
 end
+
+--Same as before, but for adding callbacks *after* a method
+function Callbacks.after(theClass, methodName, callback, ...)
+  _addCallback( theClass, 'after', methodName, callback, ... )
+end
+
 
 

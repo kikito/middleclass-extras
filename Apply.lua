@@ -103,8 +103,8 @@ function Apply:included(theClass)
   if not includes(Callbacks, theClass) then
     theClass:include(Callbacks)
   end
-  theClass:addCallback('after', 'initialize', function(instance) _add(instance.class, instance) end)
-  theClass:addCallback('after', 'destroy', function(instance) _remove(instance.class, instance) end)
+  theClass:before('initialize', function(instance) _add(instance.class, instance) end)
+  theClass:after('destroy', function(instance) _remove(instance.class, instance) end)
 end
 
 
