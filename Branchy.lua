@@ -24,51 +24,55 @@
 ]]
 
 --------------------------------
---    PRIVATE STUFF
---------------------------------
-local function _makeNode(instance)
-  instance.children = instance.children or {}
-end
-
-
---------------------------------
 --    PUBLIC STUFF
 --------------------------------
 
 Branchy = {}
 
 -- add a child to the children list
-function Branchy:addChild(child)
-  _makeNode(child)
+-- the key parameter is optional. If not given, it will be #(self.children)
+function Branchy:addChild(child, key)
+  assert(includes(Branchy, child.class), "The class " .. tostring(child.class) .. " must include Brany")
   if child.parent ~= nil then
-    parent:removeChild(child)
+    child.parent:removeChild(child)
   end
 
-  table.insert(self.children, child)
+  if key == nil then
+    table.insert(self.children, child)
+  else
+    local prevChild = self.children[key]
+    if prevChild~=nil then prevChild.parent = nil end
+    self.children[key] = child
+  end
   child.parent = self
   return child
 end
 
 -- gets the position of a child on the children list
-function Branchy:getChildPosition(child)
-  for i,c in ipairs(self.children) do
-    if c==child then return i end
+-- returns nil if not found
+function Branchy:getChildKey(child)
+  for k,c in pairs(self.children) do
+    if c==child then return k end
   end
 end
 
 -- removes a child from the children list
 function Branchy:removeChild(child)
-  local position = getChildPosition(child)
+  local key = self:getChildKey(child)
 
-  if position~=nil then
+  if key~=nil then
     child.parent = nil
-    table.remove(self.children, position)
+    if type(key)=='number' then
+      table.remove(self.children, position)
+    else
+      self.children[key]= nil
+    end
   end
 end
 
 -- empties the children list
 function Branchy:removeAllChildren()
-  for i,c in ipairs(self.children) do c.parent = nil end
+  for _,c in pairs(self.children) do c.parent = nil end
   self.children = {}
 end
 
@@ -79,8 +83,11 @@ end
 
 -- applies a method to all children, sorting them first
 function Branchy:applyToChildrenSorted(sortFunc, methodOrName, ...)
-  local copy = {}
-  for i,c in ipairs(self.children) do copy[i] = c end
+  local copy, i = {}, 1
+  for _,c in pairs(self.children) do
+    copy[i] = c
+    i = i+1
+  end
 
   if type(sortFunc)=='function' then
     table.sort(copy, sortFunc)
@@ -89,6 +96,42 @@ function Branchy:applyToChildrenSorted(sortFunc, methodOrName, ...)
   for _,c in ipairs(copy) do
     Invoker.invoke(c, methodOrName, ...)
   end
+end
+
+-- returns a list with { parent, grantparent, ... , root } of a brancy node
+function Branchy:getAncestors()
+  local ancestors = {}
+  
+  local parent = self.parent
+  while parent ~= nil do
+    table.insert(ancestors, parent)
+    parent = parent.parent
+  end
+  
+  return ancestors
+end
+
+-- returns all the children, grandchildren, etc a branchy object
+function Branchy:getDescendants()
+  local descendants = {}
+  for _,child in pairs(self.children) do
+    table.insert(descendants, child)
+    for _,descendant in ipairs(child:getDescendants()) do
+      table.insert(descendants, descendant)
+    end
+  end
+  return descendants
+end
+
+-- returns the 'brothers' of a brancy object (children of self.parent that are ~= self)
+function Branchy:getSiblings()
+  local siblings = {}
+  if self.parent~=nil then
+    for _,sibling in pairs(self.parent.children) do
+      if sibling ~= self then table.insert(siblings, sibling) end
+    end
+  end
+  return siblings
 end
 
 --------------------------------
@@ -100,7 +143,7 @@ function Branchy:included(theClass)
     theClass:include(Callbacks)
   end
 
-  theClass:before('initialize', _makeNode)
+  theClass:before('initialize', function(self) self.children = {} end)
   theClass:after('destroy', 'removeAllChildren')
 end
 
