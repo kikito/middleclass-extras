@@ -6,6 +6,7 @@
 
 assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it before using Beholder')
 assert(Invoker~=nil, 'The Beholder module requires the Invoker module in order to work. Please require Invoker before requiring Beholder')
+assert(Branchy~=nil, 'The Beholder module requires the Branchy module in order to work. Please require Branchy before requiring Beholder')
 
 --[[ Usage:
 
@@ -40,20 +41,17 @@ assert(Invoker~=nil, 'The Beholder module requires the Invoker module in order t
 --    PRIVATE NODE CLASS
 --------------------------------
 
-local Node = class('Node')
+local Node = class('Node'):include(Branchy)
 
 function Node:initialize()
   super.initialize(self)
-  self.children = {}
   self.objects=setmetatable({}, {__mode='k'})
 end
 
 function Node:getOrCreateChild(key)
   local child = self.children[key]
   if child == nil then
-    child = Node:new()
-    child.parent = self
-    self.children[key] = child
+    child = self:addChild(Node:new(), key)
   end
   return child
 end
