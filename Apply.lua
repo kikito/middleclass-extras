@@ -30,7 +30,7 @@ assert(Invoker~=nil, 'The Apply module requires the Invoker module in order to w
   
   MyClass:apply('count')
   
-  print(obj1, obj2) -- prints 2   1
+  print(obj1.counter, obj2.counter) -- prints 2   1
   
   -- instances will be automatically removed from the list after invoking destroy (obj1:destroy() or obj2:destroy())
   

@@ -24,6 +24,26 @@
 ]]
 
 --------------------------------
+--    PRIVATE STUFF
+--------------------------------
+local function _applySorted(collection, sortFunc, methodOrName, ...)
+  local copy, i = {}, 1
+  for _,c in pairs(collection) do
+    copy[i] = c
+    i = i+1
+  end
+
+  if type(sortFunc)=='function' then
+    table.sort(copy, sortFunc)
+  end
+
+  for _,elem in ipairs(copy) do
+    Invoker.invoke(elem, methodOrName, ...)
+  end
+end
+
+
+--------------------------------
 --    PUBLIC STUFF
 --------------------------------
 
@@ -76,26 +96,16 @@ function Branchy:removeAllChildren()
   self.children = {}
 end
 
--- applies a method or a function to all children
-function Branchy:applyToChildren(methodOrName, ...)
-  self:applyToChildrenSorted(nil, methodOrName, ...)
-end
-
--- applies a method to all children, sorting them first
-function Branchy:applyToChildrenSorted(sortFunc, methodOrName, ...)
-  local copy, i = {}, 1
-  for _,c in pairs(self.children) do
-    copy[i] = c
-    i = i+1
+-- returns the number of levels that a node has until it reaches root (or self)
+-- returns 0 if root
+function Branchy:getDepth()
+  local level = 0
+  local parent = self.parent
+  while parent~=nil and parent~=self do
+    parent = parent.parent
+    level = level + 1
   end
-
-  if type(sortFunc)=='function' then
-    table.sort(copy, sortFunc)
-  end
-
-  for _,c in ipairs(copy) do
-    Invoker.invoke(c, methodOrName, ...)
-  end
+  return level
 end
 
 -- returns a list with { parent, grantparent, ... , root } of a brancy node
@@ -121,6 +131,26 @@ function Branchy:getDescendants()
     end
   end
   return descendants
+end
+
+-- applies a method or a function to all children
+function Branchy:applyToChildren(methodOrName, ...)
+  _applySorted(self.children, nil, methodOrName, ...)
+end
+
+-- applies a method to all children, sorting them first
+function Branchy:applyToChildrenSorted(sortFunc, methodOrName, ...)
+  _applySorted(self.children, sortFunc, methodOrName, ...)
+end
+
+-- applies a method or a function to all descendants
+function Branchy:applyToDescendants(methodOrName, ...)
+  _applySorted(self:getDescendants(), nil, methodOrName, ...)
+end
+
+-- applies a method to all descendants, sorting them first
+function Branchy:applyToDescendantsSorted(sortFunc, methodOrName, ...)
+  _applySorted(self:getDescendants(), sortFunc, methodOrName, ...)
 end
 
 -- returns the 'brothers' of a brancy object (children of self.parent that are ~= self)

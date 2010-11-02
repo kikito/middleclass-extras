@@ -2,16 +2,23 @@ require('middleclass-extras.init')
 
 context( 'Branchy', function()
 
+  local root, a1, a2, b1, b2, list
+
   local Tree = class('Tree'):include(Branchy)
   function Tree:initialize(name)
     super.initialize(self)
     self.name = name
   end
+  function Tree:addToList()
+    table.insert(list, self)
+  end
   function Tree:__tostring()
     return 'Tree instance('.. self.name .. ')'
   end
   
-  local root, a1, a2, b1, b2
+  -- used for sorting
+  local function alphabetically(x,y) return x.name < y.name end
+  local function omegalogically(x,y) return x.name > y.name end
 
   local function createNodes()
     --[[ Structure:
@@ -23,13 +30,14 @@ context( 'Branchy', function()
         b1 b2
     ]]
     
+    list = {}
     root = Tree:new('root')
     a1 = root:addChild(Tree:new('a1'))
     a2 = root:addChild(Tree:new('a2'))
     b1 = a1:addChild(Tree:new('b1'), 'b1')
     b2 = a1:addChild(Tree:new('b2'), 'b2')
   end
-  
+
   before(createNodes)
 
   test('The parent node should be correctly set up', function()
@@ -65,15 +73,43 @@ context( 'Branchy', function()
     local siblings = b2:getSiblings()
     assert_equal(siblings[1], b1)
   end)
-  test('apply and applySorted should work', function()
-    -- TODO
+  test('getDepth works ok', function()
+    assert_equal(root:getDepth(), 0)
+    assert_equal(a1:getDepth(), 1)
+    assert_equal(a2:getDepth(), 1)
+    assert_equal(b1:getDepth(), 2)
+    assert_equal(b2:getDepth(), 2)
   end)
-  
-  
-  
-  
-  
-  
-
-
+  test('applyToChildren', function()
+    a1:applyToChildren('addToList')
+    assert_equal(#list, 2)
+  end)
+  test('applyToChildrenSorted', function()
+    a1:applyToChildrenSorted(alphabetically, 'addToList')
+    assert_equal(list[1], b1)
+    assert_equal(list[2], b2)
+    
+    list = {}
+    a1:applyToChildrenSorted(omegalogically, 'addToList')
+    assert_equal(list[1], b2)
+    assert_equal(list[2], b1)
+  end)
+  test('applyToDescendants', function()
+    root:applyToDescendants('addToList')
+    assert_equal(#list, 4)
+  end)
+  test('applyToDescendantsSorted', function()
+    root:applyToDescendantsSorted(alphabetically, 'addToList')
+    assert_equal(list[1], a1)
+    assert_equal(list[2], a2)
+    assert_equal(list[3], b1)
+    assert_equal(list[4], b2)
+    
+    list = {}
+    root:applyToDescendantsSorted(omegalogically, 'addToList')
+    assert_equal(list[1], b2)
+    assert_equal(list[2], b1)
+    assert_equal(list[3], a2)
+    assert_equal(list[4], a1)
+  end)
 end)
