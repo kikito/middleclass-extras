@@ -317,13 +317,13 @@ function Stateful:included(theClass)
   -- * makes sure that the subclasses are stateful
   -- * subclasses must inherit states from superclasses
   local prevSubclass = theClass.subclass
-  theClass.subclass = function(theClass, name)
-    local theSubClass = prevSubclass(theClass, name)
+  theClass.subclass = function(aClass, name)
+    local theSubClass = prevSubclass(aClass, name)
 
     makeStateful(theSubClass)
 
     -- the states of the subclass are subclasses of the superclass' states
-    for stateName,state in pairs(theClass.states) do
+    for stateName,state in pairs(aClass.states) do
       theSubClass:addState(stateName, state)
     end
 

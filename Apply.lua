@@ -114,8 +114,8 @@ function Apply:included(theClass)
   _createInstancesList(theClass)
   local prevSubclass = theClass.subclass
   
-  theClass.subclass = function(_, ...)
-    local theSubClass = prevSubclass(theClass, ...)
+  theClass.subclass = function(aClass, ...)
+    local theSubClass = prevSubclass(aClass, ...)
     _createInstancesList(theSubClass)
     return theSubClass
   end
