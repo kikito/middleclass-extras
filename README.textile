@@ -10,7 +10,8 @@ What follows is a brief description of each of the middleclass-extras modules. E
 * *GetterSetter* just adds a couple convenience getXXX, setXXX methods to your class.
 * *Beholder* is a small signaling/event controller mixin. Your classes can 'observe' and 'stop observing' events. Note that *Invoker* must be required before *Beholder*, or the later will not work.
 * *Callbacks* is a powerful mixin that allows you to add 'hooks' to any existing method. For example, you can specify on runtime that you want to call a method after initializing one object.
-* *Mindstate* defines stateful objects. Classes receive a new method called @addState@, and instances receive a new method called @gotoState@. The behaviour of each of the instance methods can be redefined per-state.
+* *Stateful* defines stateful objects. Classes receive a new method called @addState@, and instances receive a new method called @gotoState@. The behaviour of each of the instance methods can be redefined per-state.
+* *Branchy* defines some useful methods for classes that behave like trees (@addChild@, @getAncestors@, etc)
 
 h1. Installation
 
@@ -36,8 +37,8 @@ middleclass-extras is prepared to be required like this:
 Notes:
 * You can remove the .init part above if your loading path already includes it
 * The package assumes that it will be placed on a directory whose parent is included on the path. Normally, putting it on the 'root' of your project should work. Otherwise, you will have to modify your @package.path@ variable so includes the 'parent folder' inmediately above of middleclass-extras.
-For example, if middleclass-extras is inside a directory called 'libs', you must do:
+For example, if middleclass-extras is inside a directory called @libs@, you must do:
 
 <pre>
-package.path = 'libs/?;' .. package.path
+package.path = 'libs/?;libs/?.lua;' .. package.path
 </pre>
