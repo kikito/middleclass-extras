@@ -45,10 +45,14 @@ assert(Invoker~=nil, 'The Apply module requires the Invoker module in order to w
 -- The list of instances
 _instances = {}
 
+-- Creates the list of instances for a class
+local function _createInstancesList(theClass)
+  _instances[theClass] = _instances[theClass] or _G.setmetatable({}, {__mode = "k"})
+end
+
 -- Adds an instance to the "list of instances" of its class
 local function _add(theClass, instance)
   if not includes(Apply, theClass) then return end
-  _instances[theClass] = _instances[theClass] or _G.setmetatable({}, {__mode = "k"})
   _instances[theClass][instance] = instance
   _add(theClass.superclass, instance)
 end
@@ -105,6 +109,17 @@ function Apply:included(theClass)
   end
   theClass:before('initialize', function(instance) _add(instance.class, instance) end)
   theClass:after('destroy', function(instance) _remove(instance.class, instance) end)
+  
+  -- initializes the instances array for every class that includes this module
+  _createInstancesList(theClass)
+  local prevSubclass = theClass.subclass
+  
+  theClass.subclass = function(_, ...)
+    local theSubClass = prevSubclass(theClass, ...)
+    _createInstancesList(theSubClass)
+    return theSubClass
+  end
+
 end
 
 
