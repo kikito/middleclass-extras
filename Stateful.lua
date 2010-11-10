@@ -337,6 +337,7 @@ function Stateful:included(theClass)
   --   else create a new state called 'key' and make it implement value
   theClass.include = function(theClass, module, ...)
     assert(includes(Stateful, theClass), "Use class:includes instead of class.includes")
+    assert(type(module)=='table', "module must be a table")
     for methodName,method in pairs(module) do
       if methodName ~="included" and methodName ~= "states" then
         theClass[methodName] = method
@@ -350,6 +351,7 @@ function Stateful:included(theClass)
         state:include(moduleState, ...)
       end
     end
+    theClass.__modules[module] = module
     return theClass
   end
 
