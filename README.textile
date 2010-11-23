@@ -15,30 +15,31 @@ What follows is a brief description of each of the middleclass-extras modules. E
 
 h1. Installation
 
-Note that middleclass-extras includes middleclass as a git submodule.
+Note that middleclass-extras does *not* includes middleclass (this has changed from previous versions).
 
-In order to download middleclass-extras using git, you will have to do the following:
+In order to download middleclass-extras using git, it is very recommendable that you download middleclass and middleclass-extras:
 
 <pre>
+  git clone git://github.com/kikito/middleclass.git
   git clone git://github.com/kikito/middleclass-extras.git
-  cd middleclass-extras
-  git submodule init
-  git submodule update
 </pre>
 
 h2. Usage
 
-middleclass-extras is prepared to be required like this:
+middleclass-extras is prepared to be required right after middleclass:
 
 <pre>
+  require('middleclass.init')
   require('middleclass-extras.init')
 </pre>
 
 Notes:
-* You can remove the .init part above if your loading path already includes it
+* You can remove the .init part from middleclass if you are using middleclass as a file (middleclass.lua) instead of as a dir (middleclass/)
+* You can remove the .init part on both requires if your package.path setting already includes init.lua
 * The package assumes that it will be placed on a directory whose parent is included on the path. Normally, putting it on the 'root' of your project should work. Otherwise, you will have to modify your @package.path@ variable so includes the 'parent folder' inmediately above of middleclass-extras.
 For example, if middleclass-extras is inside a directory called @libs@, you must do:
 
 <pre>
 package.path = 'libs/?;libs/?.lua;' .. package.path
 </pre>
+
