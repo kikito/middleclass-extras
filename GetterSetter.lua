@@ -6,8 +6,8 @@
 
 --[[ Usage:
 
-  require 'MiddleClass' -- or similar
-  require 'middleclass-extras.GetterSetter' -- or 'middleclass-extras.init'
+  require 'middleclass' -- or similar
+  require 'middleclass-extras.init' -- or 'middleclass-extras'
 
   MyClass = class('MyClass')
   MyClass:include(GetterSetter)

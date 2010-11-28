@@ -10,8 +10,8 @@ assert(Branchy~=nil, 'The Beholder module requires the Branchy module in order t
 
 --[[ Usage:
 
-  require 'MiddleClass' -- or similar
-  require 'middleclass-extras.Beholder' -- or 'middleclass-extras.init'
+  require 'middleclass' -- or similar
+  require 'middleclass-extras.init' -- or 'middleclass-extras'
 
   MyClass = class('MyClass')
   MyClass:includes(Beholder)

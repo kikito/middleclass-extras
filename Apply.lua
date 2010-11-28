@@ -9,7 +9,7 @@ assert(Invoker~=nil, 'The Apply module requires the Invoker module in order to w
 
 --[[ Usage:
 
-  require 'MiddleClass' -- or similar
+  require 'middleclass' -- or similar
   require 'middleclass-extras.Apply' -- or 'middleclass-extras.init'
 
   MyClass = class('MyClass')

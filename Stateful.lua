@@ -5,8 +5,8 @@
 -----------------------------------------------------------------------------------
 --[[ Usage:
 
-  require 'MiddleClass' -- or similar
-  require 'middleclass-extras.Stateful' -- or 'middleclass-extras.init'
+  require 'middleclass' -- or similar
+  require 'middleclass-extras.init' -- or 'middleclass-extras'
 
   -- create a normal class, and make it implement Stateful
   MyClass = class('MyClass')

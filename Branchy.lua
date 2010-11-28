@@ -11,6 +11,9 @@
   --       \_ subchild1
   --       \_ subchild2
 
+  require 'middleclass' -- or similar
+  require 'middleclass-extras.init' -- or 'middleclass-extras'
+
   Tree = class('Tree'):include(Branchy)
   
   local root = Tree:new()

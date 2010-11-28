@@ -8,8 +8,8 @@ assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it 
 assert(Invoker~=nil, 'Invoker not detected. Please require it before requiring Callbacks')
 --[[ Usage:
 
-  require 'MiddleClass' -- or similar
-  require 'middleclass-extras.Callbacks' -- or 'middleclass-extras.init'
+  require 'middleclass' -- or similar
+  require 'middleclass-extras.init' -- or 'middleclass-extras'
   
   MyClass = class('MyClass')
   MyClass:include(Callbacks)
