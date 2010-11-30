@@ -55,7 +55,7 @@ Branchy = {}
 -- add a child to the children list
 -- the key parameter is optional. If not given, it will be #(self.children)
 function Branchy:addChild(child, key)
-  assert(includes(Branchy, child.class, true), tostring(child.class) .. " must include Brany")
+  assert(includes(Branchy, child.class, true), tostring(child.class) .. " must include Branchy")
   if child.parent ~= nil then
     child.parent:removeChild(child)
   end
