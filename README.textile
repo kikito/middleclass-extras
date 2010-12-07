@@ -6,25 +6,30 @@ h1. Module brief description
 
 What follows is a brief description of each of the middleclass-extras modules. Each nodule is commented out with usage examples. You can find more examples on the /spec/ folder.
 
-* *Invoker* is a very small mixin that can be used to 'send' methods to instances. It's main advantage is that it accepts both method names and lua functions on its parameters.
-* *GetterSetter* just adds a couple convenience getXXX, setXXX methods to your class.
+* *Apply* allows invoking a method in all the instances of a class (and its subclasses). It also allows sorting before executing.
 * *Beholder* is a small signaling/event controller mixin. Your classes can 'observe' and 'stop observing' events. Note that *Invoker* must be required before *Beholder*, or the later will not work.
-* *Callbacks* is a powerful mixin that allows you to add 'hooks' to any existing method. For example, you can specify on runtime that you want to call a method after initializing one object.
-* *Stateful* defines stateful objects. Classes receive a new method called @addState@, and instances receive a new method called @gotoState@. The behaviour of each of the instance methods can be redefined per-state.
 * *Branchy* defines some useful methods for classes that behave like trees (@addChild@, @getAncestors@, etc)
+* *Callbacks* is a powerful mixin that allows you to add 'hooks' to any existing method. For example, you can specify on runtime that you want to call a method after initializing one object.
+* *GetterSetter* just adds a couple convenience getXXX, setXXX methods to your class.
+* *Indexable* allows classes to have a 'fallback' method, similar to lua's @__index@ metamethod. Since @__index@ is reserved, the method used for lookup will be @index@, whithout underscores.
+* *Invoker* is a very small mixin that can be used to 'send' methods to instances. It's main advantage is that it accepts both method names and lua functions on its parameters.
+* *Stateful* defines stateful objects. Classes receive a new method called @addState@, and instances receive a new method called @gotoState@. The behaviour of each of the instance methods can be redefined per-state.
 
-h1. Installation
 
-Note that middleclass-extras does *not* includes middleclass (this has changed from previous versions).
+h1. Downloading
 
-In order to download middleclass-extras using git, it is very recommendable that you download middleclass and middleclass-extras:
+The recommended way is using "git":http://git-scm.com/.
 
-<pre>
-  git clone git://github.com/kikito/middleclass.git
-  git clone git://github.com/kikito/middleclass-extras.git
-</pre>
+In order to use middleclass-extras, you also need middleclass. You can download them both by doing:
+<pre>cd your/project/path
+git clone git://github.com/kikito/middleclass.git
+git clone git://github.com/kikito/middleclass-extras.git</pre>
 
-h2. Usage
+Alternatively, you can manually download them:
+* "middleclass download":https://github.com/kikito/middleclass/raw/master/middleclass.lua
+* "middleclass-extras download":https://github.com/kikito/middleclass/raw/master/middleclass-extras.lua
+
+h1. Usage
 
 middleclass-extras is prepared to be required right after middleclass:
 
@@ -35,11 +40,11 @@ middleclass-extras is prepared to be required right after middleclass:
 
 Notes:
 * You can remove the .init part from middleclass if you are using middleclass as a file (middleclass.lua) instead of as a dir (middleclass/)
-* You can remove the .init part on both requires if your package.path setting already includes init.lua
-* The package assumes that it will be placed on a directory whose parent is included on the path. Normally, putting it on the 'root' of your project should work. Otherwise, you will have to modify your @package.path@ variable so includes the 'parent folder' inmediately above of middleclass-extras.
-For example, if middleclass-extras is inside a directory called @libs@, you must do:
+* You can remove the .init part on both requires if your package.path setting already includes @?/init.lua@
 
-<pre>
-package.path = 'libs/?;libs/?.lua;' .. package.path
-</pre>
+h1. Specs
+
+You may find the specs for this library in "middleclass-specs":https://github.com/kikito/middleclass-specs
+
+
 
