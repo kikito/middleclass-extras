@@ -68,6 +68,7 @@ function Branchy:addChild(child, key)
     self.children[key] = child
   end
   child.parent = self
+  child.root = self.root
   return child
 end
 
@@ -85,6 +86,7 @@ function Branchy:removeChild(child)
 
   if key~=nil then
     child.parent = nil
+    child.root = nil
     if type(key)=='number' then
       table.remove(self.children, position)
     else
@@ -176,7 +178,10 @@ function Branchy:included(theClass)
     theClass:include(Callbacks)
   end
 
-  theClass:before('initialize', function(self) self.children = {} end)
+  theClass:before('initialize', function(self)
+    self.children = {}
+    self.root = self
+  end)
   theClass:after('destroy', 'removeAllChildren')
 end
 
