@@ -140,36 +140,52 @@ local function _callbackizeMethod(theClass, methodName, method)
   return _methodCache[theClass][method]
 end
 
--- modifies the __index function of a class dict so:
---   * It returns callbackized versions of methods
---   * It returns the un-callbackized version of method 'foo' when asked for 'fooWithoutCallbacks'
+-- modifies a class so:
+--   * Its instances return callbackized versions of their methods
+--   * But they returns the un-callbackized version of method 'foo' when asked for 'fooWithoutCallbacks'
 local function _changeClassDict(theClass)
 
-  local classDict = theClass.__classDict
-  local prev__index = classDict.__index
-  local tpi = type(prev__index)
-  assert(tpi == 'function' or tpi == 'table', 'invalid type for an index; must be function or table, was ' .. tostring(tpi))
-  
-  local function searchOnPrevIndex(methodName)
-    if tpi == 'table' then return prev__index[methodName] end
-    return prev__index(classDict, methodName)
-  end
-  
-  classDict.__index = function(_, methodName)
-    -- obtain method normally
-    local method = searchOnPrevIndex(methodName)
+  -- throw an error when attempting to override an already-overriden new method.
+  -- if theClass is the class that originally implemented Callbacks, (not a subclass of it)
+  -- and it has a non-standard implementation of new, then throw the error.
+  assert( includes(Callbacks, theClass.superclass) or
+          theClass.new == Object.new,
+          "Could not override the new method twice. Include Callbacks before modifying the 'new' method on " .. tostring(theclass) )
 
-    -- method found. return it callbackized
+  local classDict = theClass.__classDict
+  local tcd = type(classDict)
+  assert(tcd == 'function' or tcd == 'table', 'invalid type for an index; must be function or table, was ' .. tostring(tcd))
+
+  -- aux function used to look on the class index. Changes depending on whether classIndex is a table or function
+  local searchOnClassIndex = tdc == 'function' and classIndex or function(_, x) return classDict[x] end
+
+  -- a copy of classDict, with a modified __index that adds/removes callbacks when needed
+  local instanceDict = {}
+  
+  for k,v in pairs(classDict) do instanceDict[k] = v end
+  
+  instanceDict.__index = function(instance, methodName)
+    -- try to obtain method normally
+    local method = searchOnClassIndex(instance, methodName)
+
+    -- if method found, return it callbackized
     if method ~= nil then return _callbackizeMethod(theClass, methodName, method) end
 
-    -- method not found. Try to return the version without callbacks
+    -- if method not found, test if methoName ends in "WithoutCallbacks". If yes, return the method without callbacks
     methodName = methodName:match('(.+)WithoutCallbacks')
-    if methodName~=nil then
-      return searchOnPrevIndex(methodName)
-    end
+    if methodName ~= nil then return searchOnClassIndex(instance, methodName) end
+  end
+
+  -- modify theClass:new so instances use callbacks when needed.
+  function theClass:new(...)
+    assert(subclassOf(Object, self), "Use class:new instead of class.new")
+    local instance = setmetatable({ class = theClass }, instanceDict) -- using instanceDict instead of classDict here
+    instance:initialize(...)
+    return instance
   end
 
 end
+
 
 -- adds callbacks to a method. Used by addCallbacksBefore and addCallbacksAfter, below
 local function _addCallback( theClass, beforeOrAfter, methodName, callback, ...)
