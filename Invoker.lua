@@ -30,9 +30,13 @@ assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it 
 Invoker = {
 
   invoke = function(self, methodOrName, ...)
+    local tm = type(methodOrName)
+    assert(tm == 'string' or tm == 'function', 'methodOrName should be either a function or string. It was a '..tm.. ': ' .. tostring(methodOrName))
     local method = methodOrName
-    if(type(methodOrName)=='string') then method = self[methodOrName] end
-    assert(type(method)=='function', 'Invoker:invoke requires a function or function name')
+    if tm =='string' then
+      method = self[methodOrName]
+      assert(type(method)=='function', 'Could not find ' .. methodOrName .. ' in ' .. tostring(self))
+    end
     return method(self, ...)
   end
 
