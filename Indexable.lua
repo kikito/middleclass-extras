@@ -11,7 +11,6 @@
 
   MyClass = class('MyClass'):include(Indexable)
   function MyClass:initialize(a,b,c)
-    super.initialize(self)
     self.a, self.b, self.c = a,b,c
   end
   

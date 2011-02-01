@@ -44,7 +44,6 @@ assert(Branchy~=nil, 'The Beholder module requires the Branchy module in order t
 local Node = class('Node'):include(Branchy)
 
 function Node:initialize()
-  super.initialize(self)
   self.objects=setmetatable({}, {__mode='k'})
 end
 

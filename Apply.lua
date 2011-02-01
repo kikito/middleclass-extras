@@ -16,7 +16,6 @@ assert(Invoker~=nil, 'The Apply module requires the Invoker module in order to w
   MyClass:includes(Apply)
 
   function MyClass:initialize()
-    super.initialize(self)
     self.counter = 0
   end -- the instance will be automatically added to the list here (after initialize)
 
