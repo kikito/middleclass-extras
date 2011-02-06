@@ -10,7 +10,7 @@
 
   -- create a normal class, and make it implement Stateful
   MyClass = class('MyClass')
-  MyClass:implements(Stateful)
+  MyClass:include(Stateful)
 
   function MyClass:foo() print('Normal foo') end
   
