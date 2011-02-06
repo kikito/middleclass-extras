@@ -31,7 +31,7 @@
 -- There are hook methods (ex: exitState) called when the state information of an object changes
 
 
-assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it before using MindState')
+assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it before using Stateful')
 
 --[[ Stateful Mixin declaration
   * Stateful classes have a list of states (accesible through class.states).
