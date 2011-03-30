@@ -48,12 +48,12 @@ local function _modifyClass(theClass)
   rawset(theClass, '__instanceDict', instanceDict)
   
   -- modify the instance creator so instances use __instanceDict and not __classDict
-  local oldNew = theClass.new
-  theClass.new = function(theClass, ...)
-    local instance = oldNew(theClass, ...)
-    setmetatable(instance, theClass.__instanceDict)
-    return instance
+  local oldAllocate = theClass.allocate
+  function theClass.allocate(theClass, ...)
+    return setmetatable(oldAllocate(theClass, ...), theClass.__instanceDict)
   end
+  
+  return theClass
 end
 
 Indexable = {}
@@ -67,8 +67,6 @@ function Indexable:included(theClass)
   -- modify all future subclases of theClass the same way
   local prevSubclass = theClass.subclass
   theClass.subclass = function(aClass, name, ...)
-    local theSubClass = prevSubclass(aClass, name, ...)
-    _modifyClass(theSubClass)
-    return theSubClass
+    return _modifyClass(prevSubclass(aClass, name, ...))
   end
 end

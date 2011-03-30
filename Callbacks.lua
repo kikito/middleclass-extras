@@ -149,8 +149,8 @@ local function _changeClassDict(theClass)
   -- if theClass is the class that originally implemented Callbacks, (not a subclass of it)
   -- and it has a non-standard implementation of new, then throw the error.
   assert( includes(Callbacks, theClass.superclass) or
-          theClass.new == Object.new,
-          "Could not override the new method twice. Include Callbacks before modifying the 'new' method on " .. tostring(theclass) )
+          theClass.allocate == Object.allocate,
+          "Could not override the allocate method twice. Include Callbacks before modifying the 'allocate' method on " .. tostring(theclass) )
 
   local classDict = theClass.__classDict
   local tcd = type(classDict)
@@ -177,11 +177,9 @@ local function _changeClassDict(theClass)
   end
 
   -- modify theClass:new so instances use callbacks when needed.
-  function theClass:new(...)
+  function theClass:allocate(...)
     assert(subclassOf(Object, self), "Use class:new instead of class.new")
-    local instance = setmetatable({ class = theClass }, instanceDict) -- using instanceDict instead of classDict here
-    instance:initialize(...)
-    return instance
+    return setmetatable({ class = theClass }, instanceDict) -- using instanceDict instead of classDict here
   end
 
 end
