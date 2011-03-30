@@ -236,6 +236,3 @@ end
 function Callbacks.after(theClass, methodName, callback, ...)
   _addCallback( theClass, 'after', methodName, callback, ... )
 end
-
-
-
