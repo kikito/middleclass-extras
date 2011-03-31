@@ -177,9 +177,9 @@ local function _changeClassDict(theClass)
   end
 
   -- modify theClass:new so instances use callbacks when needed.
-  function theClass:allocate(...)
-    assert(subclassOf(Object, self), "Use class:new instead of class.new")
-    return setmetatable({ class = theClass }, instanceDict) -- using instanceDict instead of classDict here
+  local oldAllocate = theClass.allocate
+  function theClass.allocate(theClass, ...)
+    return setmetatable(oldAllocate(theClass, ...), instanceDict) -- using instanceDict instead of classDict here
   end
 
 end
