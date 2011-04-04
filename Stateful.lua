@@ -68,6 +68,16 @@ local _getState=function(instance, stateName)
   return state
 end
 
+local _assertString=function(value, name)
+  assert(type(value)=='string', name .. " must be either a string")
+end
+
+local _assertStringOrNil=function(value, name)
+  local tvalue = type(value)
+  assert(tvalue=='string' or tvalue=='nil', name .. " must be either a string or nil")
+end
+
+
 -- Changes a class by:
 -- * adding a 'states' field to it
 -- * re-defining the class __index method so it looks on the state stack before 'going up'
@@ -104,34 +114,6 @@ end
 -- The State class; is the father of all State objects
 Stateful.State = class('Stateful.State', Object)
 
--- Extra parameter theRootClass is the class where the state is being added. It is used for method lookup
-function Stateful.State.subclass(theClass, name, theRootClass)
-  assert(type(name) == 'string', "Must provide a name for the new state")
-  assert(includes(Stateful, theRootClass), tostring(theRootClass) .. ' must include the Stateful mixin')
-
-  local theSubClass = Object.subclass(theClass, name)
-  theSubClass.subclass = theRootClass.State.subclass
-
-  -- Modify super so it points to :
-  --  a) the superState, if we still have 'States up' (parent is not State)
-  --  b) theRootClass's superclass if we have 'run out of states' (parent of this class is State)
-  local superDict = theClass.__classDict
-  if theClass == theRootClass.State then
-    superDict = theRootClass.superclass.__classDict
-  end
-  local mt = getmetatable(theSubClass)
-  mt.__newindex = function(_, methodName, method)
-    if type(method) == 'function' then
-      local fenv = getfenv(method)
-      local newenv = setmetatable( {super = superDict},  {__index = fenv, __newindex = fenv} )
-      setfenv( method, newenv )
-    end
-    rawset(theSubClass.__classDict, methodName, method)
-  end
-
-  return theSubClass
-end
-
 ------------------------------------
 -- INSTANCE METHODS
 ------------------------------------
@@ -144,8 +126,7 @@ end
   Second parameter is optional. If true, the stack will be conserved. Otherwise, it will be popped.
 ]]
 function Stateful:gotoState(newStateName, keepStack)
-  local tnsn = type(newStateName)
-  assert(tnsn=='string' or tnsn=='nil', "newStateName must be either a string or nil")
+  _assertStringOrNil(newStateName, 'newStateName')
   -- If we're trying to go to a state in which we already are, return (do nothing)
   local stack = _getOrCreateStack(self)
   for _,state in ipairs(stack) do 
