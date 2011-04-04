@@ -107,6 +107,24 @@ local function makeStateful(theClass)
 
 end
 
+-- true if state is on the stack, false otherwise
+local function _inStack(self, stateName)
+
+  local stack = _getOrCreateStack(self)
+
+  for i=1, #stack do
+    local state = stack[i]
+    if state.name == stateName then return true end
+  end
+
+  return false
+end
+
+local function _getTopState(self)
+  local stack = _getOrCreateStack(self)
+  return stack[#stack]
+end
+
 ------------------------------------
 -- STATE CLASS
 ------------------------------------
@@ -123,34 +141,36 @@ Stateful.State = class('Stateful.State', Object)
   If the "next" state exists and has a method called onExitState, it will be called, with the instance as a parameter.
   use gotoState(nil) for setting states to nothing
   This method invokes the exitState and enterState functions if they exist on the current state
-  Second parameter is optional. If true, the stack will be conserved. Otherwise, it will be popped.
+  Second parameter is optional. If true, the stack will be conserved (the top state will be replaced).
+  Otherwise, all the states on the stack will be popped (with the corresponding callbacks being executed).
 ]]
 function Stateful:gotoState(newStateName, keepStack)
   _assertStringOrNil(newStateName, 'newStateName')
-  -- If we're trying to go to a state in which we already are, return (do nothing)
-  local stack = _getOrCreateStack(self)
-  for _,state in ipairs(stack) do 
-    if(state.name == newStateName) then return end
-  end
 
-  local stackSize = #stack
-  local prevState = stack[stackSize] -- need this variable for the last call on this func
+  if(_inStack(self, newStateName)) then return end
+
+  local prevState = _getTopState(self) -- need this variable for the last call on this func
 
   -- Either empty completely the stack, or just call the exitstate callback on current state
-  if keepStack==true then
+  if keepStack == true then
     _invokeCallback(self, prevState, 'exitState', newStateName)
   else
     self:popAllStates()
   end
 
   if newStateName ~= nil then
+    local stack = _getOrCreateStack(self)
+    local stackSize = #stack
+
     local nextState = _getState(self, newStateName)
 
     -- replace the top of the stack with the new state
-    stack[stackSize == 0 and 1 or stackSize] = nextState
+    local position = stackSize == 0 and 1 or stackSize
+    stack[position] = nextState
 
-    -- Invoke enterState on the new state. 2nd parameter is the name of the previous state, or nil
-    _invokeCallback(self, nextState, 'enterState', prevState~=nil and prevState.name or nil)
+    -- Invoke enterState on the new state.
+    local previousStateName = prevState~=nil and prevState.name or nil
+    _invokeCallback(self, nextState, 'enterState', previousStateName)
   end
 end
 
