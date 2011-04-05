@@ -243,17 +243,8 @@ end
   If testStack true, this method returns true if the state is on the stack instead
 ]]
 function Stateful:isInState(stateName, testStack)
-  local stack = self._stateStack
-
-  if testStack == true then
-    for _,state in ipairs(stack) do 
-      if state.name == stateName then return true end
-    end
-  else --testStack==false
-    local state = stack[#stack]
-    if state~=nil and state.name == stateName then return true end
-  end
-
+  local state = testStack and _getStateFromStack(self, stateName) or _getTopState(self)
+  if state~=nil and state.name == stateName then return true end
   return false
 end
 
