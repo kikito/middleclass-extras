@@ -161,7 +161,6 @@ Stateful.State = class('Stateful.State')
 ]]
 function Stateful:gotoState(newStateName, keepStack)
   _assertStringOrNil(newStateName, 'newStateName')
-
   if(_inStack(self, newStateName)) then return end
 
   if not keepStack then self:popAllStates() end
@@ -176,23 +175,13 @@ end
   Invokes 'pushedState' and 'enterState' on the new state, if existing
 ]]
 function Stateful:pushState(newStateName)
-  assert(type(newStateName)=='string', "newStateName must be a string.")
+  _assertString(newStateName, 'newStateName')
+  if(_inStack(self, newStateName)) then return end
+
+  _invokeCallback(self, _getTopState(self), 'pausedState')
 
   local nextState = _getState(self, newStateName)
-
-  -- If we attempt to push a state and the state is already in the pile then return (do nothing)
-  local stack = self._stateStack
-  for _,state in ipairs(stack) do
-    if state.name == newStateName then return end
-  end
-
-  -- Invoke pausedState on the previous state
-  _invokeCallback(self, stack[#stack], 'pausedState')
-
-  -- Do the push
-  table.insert(stack, nextState)
-
-  -- Invoke pushedState & enterState on the next state
+  table.insert(self._stateStack, nextState)
   _invokeCallback(self, nextState, 'pushedState')
   _invokeCallback(self, nextState, 'enterState')
 
