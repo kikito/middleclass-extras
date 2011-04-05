@@ -85,8 +85,9 @@ local function _assertStringOrNil(value, name)
   assert(tvalue=='string' or tvalue=='nil', name .. " must be either a string or nil")
 end
 
+-- looks for a method "going up" on the stack
 local function _lookUpMethodstatefully(self, methodName)
-  local stack = rawget(self, '_stateStack')
+  local stack = rawget(self, '_stateStack') -- needs rawget here, else infinite loop with class methods
   if stack then
     for i = #stack,1,-1 do -- reversal loop
       local method = stack[i][methodName]
@@ -95,6 +96,7 @@ local function _lookUpMethodstatefully(self, methodName)
   end
 end
 
+-- makes instances to use the stack before "moving up" on the ladder
 local function _modifyClassDictionaryLookup(theClass)
   local classDict = theClass.__classDict
   local prevIndex = classDict.__index
@@ -107,6 +109,7 @@ local function _modifyClassDictionaryLookup(theClass)
   end
 end
 
+-- adds a _stateStack method to instances, before calling initialize
 local function _modifyClassAllocate(theClass)
   local oldAllocate = theClass.allocate
   function theClass.allocate(theClass, ...)
@@ -174,6 +177,7 @@ local function _inStack(self, stateName)
   return false
 end
 
+-- the state at the top of the stack
 local function _getTopState(self)
   return self._stateStack[#self._stateStack]
 end
@@ -191,7 +195,6 @@ local function _setTopState(self, newStateName)
   _invokeCallback(self, prevState, 'exitState', newStateName)
 
   local nextState = _getStateFromClass(self, newStateName)
-
   _setTopStateWithoutCallbacks(self, nextState)
 
   _invokeCallback(self, nextState, 'enterState', prevStateName)
