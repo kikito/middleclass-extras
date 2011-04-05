@@ -52,11 +52,28 @@ local function _invokeCallback(self, state, callbackName, ... )
 end
 
 -- returns the instance's state with the given name. Errors if state not found
-local function _getState(instance, stateName)
+local function _getStateFromClass(self, stateName)
   if stateName == nil then return nil end
-  local state = instance.class.states[stateName]
+  local state = self.class.states[stateName]
   assert(state~=nil, "State '" .. tostring(stateName) .. "' not found")
   return state
+end
+
+-- looks for a state on the instance stack. Returns the state + position on the stack
+-- if stateName is nil, it returns the top of the stack + stackSize
+local function _getStateFromStack(self, stateName)
+  local stack = self._stateStack
+  local stackSize = #stack
+  if stateName then
+    local state
+    for i=1, stackSize do
+      state = stack[i]
+      if state.name == stateName then 
+        return state, i
+      end
+    end
+  end
+  return stack[stackSize], stackSize
 end
 
 local function _assertString(value, name)
@@ -133,7 +150,7 @@ local function _setTopState(self, newStateName)
   local prevStateName = prevState~=nil and prevState.name or nil
   _invokeCallback(self, prevState, 'exitState', newStateName)
 
-  local nextState = _getState(self, newStateName)
+  local nextState = _getStateFromClass(self, newStateName)
 
   _setTopStateWithoutCallbacks(self, nextState)
 
@@ -180,7 +197,7 @@ function Stateful:pushState(newStateName)
 
   _invokeCallback(self, _getTopState(self), 'pausedState')
 
-  local nextState = _getState(self, newStateName)
+  local nextState = _getStateFromClass(self, newStateName)
   table.insert(self._stateStack, nextState)
   _invokeCallback(self, nextState, 'pushedState')
   _invokeCallback(self, nextState, 'enterState')
@@ -195,38 +212,22 @@ end
    Returns the length of the state stack after the pop
 ]]
 function Stateful:popState(stateName)
-  local tsn = type(stateName)
-  assert(tsn=='string' or tsn=='nil', "stateName must be either a string or nil.")
+  _assertStringOrNil(stateName, 'stateName')
 
-  -- Calculate the position of the state to be removed
-  local stack, position = self._stateStack, 0
-  local stackSize = #stack
-  if tsn == 'string' then
-    for i,state in ipairs(stack) do 
-      if state.name == stateName then
-        position = i
-        break
-      end
-    end
-  else
-    position = stackSize
-  end
+  local prevState, position = _getStateFromStack(self, stateName)
 
-  local prevState = stack[position]
-
-  if prevState~=nil then -- if a state to be removed is found (either the top or a named one)
-    -- Invoke exitstate & poppedState on the state being popped out
+  if prevState ~= nil then
     _invokeCallback(self, prevState, 'exitState')
     _invokeCallback(self, prevState, 'poppedState')
 
-    -- Remove the state from the stack
-    table.remove(stack, position)
+    table.remove(self._stateStack, position)
 
-    -- If the state on the top of the stack has been popped, invoke continuedState on the new top
-    if position == stackSize then _invokeCallback(self, stack[stackSize-1], 'continuedState') end
+    if position == #self._stateStack + 1 then
+      _invokeCallback(self, _getTopState(self), 'continuedState')
+    end
   end
 
-  return #stack
+  return #self._stateStack
 end
 
 --[[ Empties the state stack
