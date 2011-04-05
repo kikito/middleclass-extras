@@ -44,35 +44,26 @@ Stateful = {}
 ------------------------------------
 -- PRIVATE ATTRIBUTES AND METHODS
 ------------------------------------
-local _stacks = setmetatable({}, {__mode = "k"})   -- weak table storing private state stacks
-
 -- helper function used to call state callbacks (enterState, exitState, etc)
-local _invokeCallback = function(self, state, callbackName, ... )
-  if state==nil then return end
+local function _invokeCallback(self, state, callbackName, ... )
+  if state == nil then return end
   local callback = state[callbackName]
   if(type(callback)=='function') then callback(self, ...) end
 end
 
--- gets creates the state stack of one instance
-local _getOrCreateStack=function(instance)
-  if _stacks[instance] == nil then
-    _stacks[instance] = {}
-  end
-  return _stacks[instance]
-end
-
 -- returns the instance's state with the given name. Errors if state not found
-local _getState=function(instance, stateName)
+local function _getState(instance, stateName)
+  if stateName == nil then return nil end
   local state = instance.class.states[stateName]
   assert(state~=nil, "State '" .. tostring(stateName) .. "' not found")
   return state
 end
 
-local _assertString=function(value, name)
+local function _assertString(value, name)
   assert(type(value)=='string', name .. " must be either a string")
 end
 
-local _assertStringOrNil=function(value, name)
+local function _assertStringOrNil(value, name)
   local tvalue = type(value)
   assert(tvalue=='string' or tvalue=='nil', name .. " must be either a string or nil")
 end
@@ -91,10 +82,12 @@ local function makeStateful(theClass)
   local prevIndex = classDict.__index
   classDict.__index = function(instance, methodName)
     -- look up on the stack to see if the method is re-defined on one state
-    local stack = _getOrCreateStack(instance)
-    for i = #stack,1,-1 do -- reversal loop
-      local method = stack[i][methodName]
-      if method ~= nil then return method end
+    local stack = rawget(instance, '_stateStack')
+    if stack then
+      for i = #stack,1,-1 do -- reversal loop
+        local method = stack[i][methodName]
+        if method ~= nil then return method end
+      end
     end
     --if not found on the state stack, look it up on the regular class dict
     local tpi = type(prevIndex)
@@ -105,24 +98,46 @@ local function makeStateful(theClass)
     end
   end
 
+  -- modify the instance creator so instances start with a stack
+  local oldAllocate = theClass.allocate
+  function theClass.allocate(theClass, ...)
+    local instance = oldAllocate(theClass, ...)
+    instance._stateStack = {}
+    return instance
+  end
+
 end
 
 -- true if state is on the stack, false otherwise
 local function _inStack(self, stateName)
-
-  local stack = _getOrCreateStack(self)
-
-  for i=1, #stack do
-    local state = stack[i]
+  for i=1, #self._stateStack do
+    local state = self._stateStack[i]
     if state.name == stateName then return true end
   end
-
   return false
 end
 
 local function _getTopState(self)
-  local stack = _getOrCreateStack(self)
-  return stack[#stack]
+  return self._stateStack[#self._stateStack]
+end
+
+local function _setTopStateWithoutCallbacks(self, nextState)
+  local stackSize = #self._stateStack
+  local position = stackSize == 0 and 1 or stackSize
+  self._stateStack[position] = nextState
+end
+
+local function _setTopState(self, newStateName)
+  local prevState = _getTopState(self)
+
+  local prevStateName = prevState~=nil and prevState.name or nil
+  _invokeCallback(self, prevState, 'exitState', newStateName)
+
+  local nextState = _getState(self, newStateName)
+
+  _setTopStateWithoutCallbacks(self, nextState)
+
+  _invokeCallback(self, nextState, 'enterState', prevStateName)
 end
 
 ------------------------------------
@@ -130,7 +145,7 @@ end
 ------------------------------------
 
 -- The State class; is the father of all State objects
-Stateful.State = class('Stateful.State', Object)
+Stateful.State = class('Stateful.State')
 
 ------------------------------------
 -- INSTANCE METHODS
@@ -149,29 +164,9 @@ function Stateful:gotoState(newStateName, keepStack)
 
   if(_inStack(self, newStateName)) then return end
 
-  local prevState = _getTopState(self) -- need this variable for the last call on this func
+  if not keepStack then self:popAllStates() end
 
-  -- Either empty completely the stack, or just call the exitstate callback on current state
-  if keepStack == true then
-    _invokeCallback(self, prevState, 'exitState', newStateName)
-  else
-    self:popAllStates()
-  end
-
-  if newStateName ~= nil then
-    local stack = _getOrCreateStack(self)
-    local stackSize = #stack
-
-    local nextState = _getState(self, newStateName)
-
-    -- replace the top of the stack with the new state
-    local position = stackSize == 0 and 1 or stackSize
-    stack[position] = nextState
-
-    -- Invoke enterState on the new state.
-    local previousStateName = prevState~=nil and prevState.name or nil
-    _invokeCallback(self, nextState, 'enterState', previousStateName)
-  end
+  _setTopState(self, newStateName)
 end
 
 --[[ Changes the current state, by pushing a new state on the stack.
@@ -186,7 +181,7 @@ function Stateful:pushState(newStateName)
   local nextState = _getState(self, newStateName)
 
   -- If we attempt to push a state and the state is already in the pile then return (do nothing)
-  local stack = _getOrCreateStack(self)
+  local stack = self._stateStack
   for _,state in ipairs(stack) do
     if state.name == newStateName then return end
   end
@@ -215,7 +210,7 @@ function Stateful:popState(stateName)
   assert(tsn=='string' or tsn=='nil', "stateName must be either a string or nil.")
 
   -- Calculate the position of the state to be removed
-  local stack, position = _getOrCreateStack(self), 0
+  local stack, position = self._stateStack, 0
   local stackSize = #stack
   if tsn == 'string' then
     for i,state in ipairs(stack) do 
@@ -258,7 +253,7 @@ end
   If testStack true, this method returns true if the state is on the stack instead
 ]]
 function Stateful:isInState(stateName, testStack)
-  local stack = _getOrCreateStack(self)
+  local stack = self._stateStack
 
   if testStack == true then
     for _,state in ipairs(stack) do 
@@ -274,7 +269,7 @@ end
 
 -- Returns the name of the state on top of the stack or nil if no state
 function Stateful:getCurrentStateName()
-  local stack = _getOrCreateStack(self)
+  local stack = self._stateStack
   local currState = stack[#stack]
   return currState ~= nil and currState.name or nil
 end
