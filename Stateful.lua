@@ -250,9 +250,8 @@ end
 
 -- Returns the name of the state on top of the stack or nil if no state
 function Stateful:getCurrentStateName()
-  local stack = self._stateStack
-  local currState = stack[#stack]
-  return currState ~= nil and currState.name or nil
+  local state = _getTopState(self)
+  return state ~= nil and state.name or nil
 end
 
 ------------------------------------
