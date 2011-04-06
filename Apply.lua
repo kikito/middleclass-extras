@@ -46,6 +46,17 @@ local function _modifyClass(theClass)
   theClass._instances = setmetatable({}, {__mode = "kv"})
 end
 
+-- subclasses should also have the _istances list
+local function _modifySubclassMethod(theClass)
+  local prevSubclass = theClass.subclass
+  
+  theClass.subclass = function(aClass, ...)
+    local theSubClass = prevSubclass(aClass, ...)
+    _modifyClass(theSubClass)
+    return theSubClass
+  end
+end
+
 -- Adds an instance to the "list of instances" of its class
 local function _add(theClass, instance)
   if not includes(Apply, theClass) then return end
@@ -67,16 +78,6 @@ local function _copyTable(t)
     i = i + 1
   end
   return copy
-end
-
-local function _modifySubclass(theClass)
-  local prevSubclass = theClass.subclass
-  
-  theClass.subclass = function(aClass, ...)
-    local theSubClass = prevSubclass(aClass, ...)
-    _modifyClass(theSubClass)
-    return theSubClass
-  end
 end
 
 --------------------------------
@@ -122,10 +123,8 @@ function Apply:included(theClass)
   theClass:before('initialize', function(instance) _add(instance.class, instance) end)
   theClass:after('destroy', function(instance) _remove(instance.class, instance) end)
 
-  -- initializes the instances array for every class that includes this module
   _modifyClass(theClass)
-
-  _modifySubclass(theClass)
+  _modifySubclassMethod(theClass)
 
 end
 
