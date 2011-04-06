@@ -41,18 +41,15 @@ assert(Invoker~=nil, 'The Apply module requires the Invoker module in order to w
 --      PRIVATE STUFF
 --------------------------------
 
--- The list of instances
-_instances = {}
-
 -- Creates the list of instances for a class
-local function _createInstancesList(theClass)
-  _instances[theClass] = _instances[theClass] or _G.setmetatable({}, {__mode = "k"})
+local function _modifyClass(theClass)
+  theClass._instances = setmetatable({}, {__mode = "kv"})
 end
 
 -- Adds an instance to the "list of instances" of its class
 local function _add(theClass, instance)
   if not includes(Apply, theClass) then return end
-  _instances[theClass][instance] = instance
+  theClass._instances[instance] = instance
   _add(theClass.superclass, instance)
 end
 
@@ -60,7 +57,26 @@ end
 local function _remove(theClass, instance)
   if not includes(Apply, theClass) then return end
   _remove(theClass.superclass, instance)
-  if _instances[theClass] ~= nil then _instances[theClass][instance] = nil end
+  theClass._instances[instance] = nil
+end
+
+local function _copyTable(t)
+  local copy,i = {},1
+  for _,item in pairs(t) do
+    copy[i] = item
+    i = i + 1
+  end
+  return copy
+end
+
+local function _modifySubclass(theClass)
+  local prevSubclass = theClass.subclass
+  
+  theClass.subclass = function(aClass, ...)
+    local theSubClass = prevSubclass(aClass, ...)
+    _modifyClass(theSubClass)
+    return theSubClass
+  end
 end
 
 --------------------------------
@@ -81,17 +97,14 @@ end
 --   * a copy of the instances table is always made so calling removeFromApply is safe inside apply
 function Apply.applySorted(theClass, sortFunc, methodOrName, ...)
 
-  local copy,i = {},1
-  for _,instance in pairs(_instances[theClass]) do
-    copy[i] = instance
-    i = i + 1
-  end
+  -- this copy is needed in case the invoked function results in an item deletion
+  local instances = _copyTable(theClass._instances)
 
   if type(sortFunc)=='function' then
-    table.sort(copy, sortFunc)
+    table.sort(instances, sortFunc)
   end
 
-  for _,instance in ipairs(copy) do
+  for _,instance in ipairs(instances) do
     if Invoker.invoke(instance, methodOrName, ...) == false then return false end
   end
   return true
@@ -103,21 +116,16 @@ end
 
 -- modifies the class that includes this module. For internal use only.
 function Apply:included(theClass)
-  if not includes(Callbacks, theClass) then
-    theClass:include(Callbacks)
-  end
+  if includes(Apply, theClass) then return end
+
+  theClass:include(Callbacks)
   theClass:before('initialize', function(instance) _add(instance.class, instance) end)
   theClass:after('destroy', function(instance) _remove(instance.class, instance) end)
-  
+
   -- initializes the instances array for every class that includes this module
-  _createInstancesList(theClass)
-  local prevSubclass = theClass.subclass
-  
-  theClass.subclass = function(aClass, ...)
-    local theSubClass = prevSubclass(aClass, ...)
-    _createInstancesList(theSubClass)
-    return theSubClass
-  end
+  _modifyClass(theClass)
+
+  _modifySubclass(theClass)
 
 end
 
