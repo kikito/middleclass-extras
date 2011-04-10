@@ -29,19 +29,25 @@
 --------------------------------
 --    PRIVATE STUFF
 --------------------------------
-local function _applySorted(collection, sortFunc, methodOrName, ...)
+
+local function _copyTable(collection)
   local copy, i = {}, 1
   for _,c in pairs(collection) do
     copy[i] = c
     i = i+1
   end
+  return copy
+end
+
+local function _applySorted(collection, sortFunc, methodOrName, ...)
+  local copy = _copyTable(collection)
 
   if type(sortFunc)=='function' then
     table.sort(copy, sortFunc)
   end
 
-  for _,elem in ipairs(copy) do
-    Invoker.invoke(elem, methodOrName, ...)
+  for i=1, #copy do
+    Invoker.invoke(copy[i], methodOrName, ...)
   end
 end
 
@@ -60,13 +66,13 @@ function Branchy:addChild(child, key)
     child.parent:removeChild(child)
   end
 
-  if key == nil then
-    table.insert(self.children, child)
+  if key then
+    self:removeChild(self.children[key])
   else
-    local prevChild = self.children[key]
-    if prevChild~=nil then prevChild.parent = nil end
-    self.children[key] = child
+    key = #self.children + 1
   end
+
+  self.children[key] = child
   child.parent = self
   return child
 end
@@ -90,7 +96,7 @@ end
 function Branchy:removeChild(child)
   local key = self:getChildKey(child)
 
-  if key~=nil then
+  if key then
     child.parent = nil
     if type(key)=='number' then
       table.remove(self.children, position)
@@ -166,7 +172,7 @@ end
 -- returns the 'brothers' of a brancy object (children of self.parent that are ~= self)
 function Branchy:getSiblings()
   local siblings = {}
-  if self.parent~=nil then
+  if self.parent then
     for _,sibling in pairs(self.parent.children) do
       if sibling ~= self then table.insert(siblings, sibling) end
     end
@@ -179,9 +185,7 @@ end
 --------------------------------
 
 function Branchy:included(theClass)
-  if not includes(Callbacks, theClass) then
-    theClass:include(Callbacks)
-  end
+  theClass:include(Callbacks)
 
   theClass:before('initialize', function(self)
     self.children = {}
