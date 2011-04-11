@@ -51,6 +51,16 @@ local function _applySorted(collection, sortFunc, methodOrName, ...)
   end
 end
 
+local function _modifyAllocateMethod(theClass)
+  local oldAllocate = theClass.allocate
+
+  function theClass.allocate(theClass)
+    local instance = oldAllocate(theClass)
+    instance.children = {}
+    return instance
+  end
+end
+
 
 --------------------------------
 --    PUBLIC STUFF
@@ -187,9 +197,8 @@ end
 function Branchy:included(theClass)
   theClass:include(Callbacks)
 
-  theClass:before('initialize', function(self)
-    self.children = {}
-  end)
+  _modifyAllocateMethod(theClass)
+
   theClass:after('destroy', 'removeAllChildren')
 end
 
