@@ -33,18 +33,24 @@ local _metamethods = { -- all metamethods except __index
   '__add', '__call', '__concat', '__div', '__le', '__lt', '__mod', '__mul', '__pow', '__sub', '__tostring', '__unm' 
 }
 
--- make the class index-aware. Otherwise, index would be a regular method
-local function _modifyClass(theClass)
-  -- create a dictionary for instances, using the classDict, and store it on the class (so others can use it a little)
+
+local function _createInstanceDict(theClass)
   local classDict = theClass.__classDict
   local instanceDict = {}
   
-  for _,mmName in ipairs(theClass.__classDict) do
+  for _,mmName in ipairs(_metamethods) do
     instanceDict[mmName] = function(...) return classDict[mmName](...) end
   end
   
   instanceDict.__index = function(instance, name) return classDict[name] or instance:index(name) end
   setmetatable(instanceDict, {__index = classDict})
+  return instanceDict
+end
+
+local function _modifyAllocateMethod(theClass)
+  local instanceDict = _createInstanceDict(theClass)
+  local classDict = theClass.__classDict
+
   rawset(theClass, '__instanceDict', instanceDict)
   
   -- modify the instance creator so instances use __instanceDict and not __classDict
@@ -56,17 +62,17 @@ local function _modifyClass(theClass)
   return theClass
 end
 
+local function _modifySubclassMethod(theClass)
+  local prevSubclass = theClass.subclass
+  theClass.subclass = function(aClass, name, ...)
+    return _modifyAllocateMethod(prevSubclass(aClass, name, ...))
+  end
+end
+
 Indexable = {}
 
 function Indexable:included(theClass) 
   if includes(Indexable, theClass) then return end
-  
-  -- modify the class
-  _modifyClass(theClass)
-  
-  -- modify all future subclases of theClass the same way
-  local prevSubclass = theClass.subclass
-  theClass.subclass = function(aClass, name, ...)
-    return _modifyClass(prevSubclass(aClass, name, ...))
-  end
+  _modifyAllocateMethod(theClass)
+  _modifySubclassMethod(theClass)
 end
