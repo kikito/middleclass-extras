@@ -57,6 +57,10 @@ assert(Invoker~=nil, 'Invoker not detected. Please require it before requiring C
 local _entries = setmetatable({}, {__mode = "k"}) -- weak table
 local _methodCache = setmetatable({}, {__mode = "k"}) -- weak table
 
+local _metamethods = { -- all metamethods except __index
+  '__add', '__call', '__concat', '__div', '__le', '__lt', '__mod', '__mul', '__pow', '__sub', '__tostring', '__unm' 
+}
+
 -- private class methods
 
 local function _getEntry(theClass, methodName)
@@ -117,16 +121,8 @@ function _invokeActions(instance, actions)
   end
 end
 
--- returns a function that executes "method", but with before and after actions
--- it also does some optimizations. It uses a cache, and returns the method itself when it
--- doesn't have any entries on the entry list (hence no callbacks)
-local function _callbackizeMethod(theClass, methodName, method)
-
-  if type(method)~='function' or not _hasEntry(theClass, methodName) then return method end
-
-  _methodCache[theClass] = _methodCache[theClass] or {}
-  
-  _methodCache[theClass][method] = _methodCache[theClass][method] or function(instance, ...)
+local function _createCallcackizedMethod(methodName)
+  return function(instance, ...)
     local before, after = _getActions(instance, methodName)
 
     if _invokeActions(instance, before) == false then return false end
@@ -136,66 +132,87 @@ local function _callbackizeMethod(theClass, methodName, method)
     if _invokeActions(instance, after) == false then return false end
     return unpack(result)
   end
+end
+
+-- returns a function that executes "method", but with before and after actions
+-- it also does some optimizations. It uses a cache, and returns the method itself when it
+-- doesn't have any entries on the entry list (hence no callbacks)
+local function _callbackizeMethod(theClass, methodName, method)
+
+  if type(method)~='function' or not _hasEntry(theClass, methodName) then return method end
+
+  _methodCache[theClass] = _methodCache[theClass] or {}
+  _methodCache[theClass][method] = _methodCache[theClass][method] or _createCallcackizedMethod(methodName)
   
   return _methodCache[theClass][method]
 end
 
--- modifies a class so:
---   * Its instances return callbackized versions of their methods
---   * But they returns the un-callbackized version of method 'foo' when asked for 'fooWithoutCallbacks'
-local function _changeClassDict(theClass)
-
-  -- throw an error when attempting to override an already-overriden new method.
-  -- if theClass is the class that originally implemented Callbacks, (not a subclass of it)
-  -- and it has a non-standard implementation of new, then throw the error.
-  assert( includes(Callbacks, theClass.superclass) or
-          theClass.allocate == Object.allocate,
-          "Could not override the allocate method twice. Include Callbacks before modifying the 'allocate' method on " .. tostring(theclass) )
-
-  local classDict = theClass.__classDict
+local function _assertFunctionOrTable(classDict)
   local tcd = type(classDict)
-  assert(tcd == 'function' or tcd == 'table', 'invalid type for an index; must be function or table, was ' .. tostring(tcd))
+  assert(tcd == 'function' or tcd == 'table', 'invalid type for an index; must be function or table, was ' .. tcd)
+end
 
-  -- aux function used to look on the class index. Changes depending on whether classIndex is a table or function
-  local searchOnClassIndex = tdc == 'function' and classIndex or function(_, x) return classDict[x] end
+local function _createIndexFunction(theClass, methodName, classDictFunction)
+  return function(instance, methodName)
+    local method = classDictFunction(instance, methodName)
+
+    if method then return _callbackizeMethod(theClass, methodName, method) end
+
+    -- If method not found, test if methoName ends in "WithoutCallbacks".
+    -- If it does yes, return the method without callbacks
+    methodName = methodName:match('(.+)WithoutCallbacks')
+    if methodName ~= nil then return classDictFunction(instance, methodName) end
+  end
+end
+
+local function _buildClassDictFunction(classDict)
+  local classDictFunction = classDict
+  if type(classDict) == 'table' then classDictFunction = function(_, x) return classDict[x] end end
+  return classDictFunction
+end
+
+local function _createInstanceDict(theClass)
+  local classDict = theClass.__classDict
+  _assertFunctionOrTable(classDict)
 
   -- a copy of classDict, with a modified __index that adds/removes callbacks when needed
   local instanceDict = {}
-  
-  for k,v in pairs(classDict) do instanceDict[k] = v end
-  
-  instanceDict.__index = function(instance, methodName)
-    -- try to obtain method normally
-    local method = searchOnClassIndex(instance, methodName)
-
-    -- if method found, return it callbackized
-    if method ~= nil then return _callbackizeMethod(theClass, methodName, method) end
-
-    -- if method not found, test if methoName ends in "WithoutCallbacks". If yes, return the method without callbacks
-    methodName = methodName:match('(.+)WithoutCallbacks')
-    if methodName ~= nil then return searchOnClassIndex(instance, methodName) end
-  end
-
-  -- modify theClass:new so instances use callbacks when needed.
-  local oldAllocate = theClass.allocate
-  function theClass.allocate(theClass, ...)
-    return setmetatable(oldAllocate(theClass, ...), instanceDict) -- using instanceDict instead of classDict here
-  end
-
+  for k,v in pairs(_metamethods) do instanceDict[k] = v end
+  instanceDict.__index = _createIndexFunction(theClass, methodName, _buildClassDictFunction(classDict))
+  return instanceDict
 end
 
+local function _modifyAllocateMethod(theClass)
+  local oldAllocate = theClass.allocate
+  function theClass.allocate(theClass, ...)
+    return setmetatable(oldAllocate(theClass, ...), _createInstanceDict(theClass))
+  end
+end
+
+local function _modifySubclassMethod(theClass)
+  local prevSubclass = theClass.subclass
+  theClass.subclass = function(aClass, name, ...)
+    local theSubClass = prevSubclass(aClass, name, ...)
+    _modifyAllocateMethod(theSubClass)
+    return theSubClass
+  end
+end
+
+
+function _assertFunctionOrString(callback)
+  local tCallback = type(callback)
+  assert(tCallback == 'string' or tCallback == 'function', 'callback must be a method name or a function')
+end
 
 -- adds callbacks to a method. Used by addCallbacksBefore and addCallbacksAfter, below
 local function _addCallback( theClass, beforeOrAfter, methodName, callback, ...)
   assert(type(methodName)=='string', 'methodName must be a string')
-  local tCallback = type(callback)
-  assert(tCallback == 'string' or tCallback == 'function', 'callback must be a method name or a function')
+  _assertFunctionOrString(callback)
 
   local entry = _getOrCreateEntry(theClass, methodName)
 
   table.insert(entry[beforeOrAfter], {method = callback, params = {...}})
 end
-
 
 --------------------------------
 --      PUBLIC STUFF
@@ -206,16 +223,8 @@ Callbacks = {}
 function Callbacks:included(theClass)
   if includes(Callbacks, theClass) then return end
 
-  -- change how __index works on the class itself
-  _changeClassDict(theClass)
-
-  -- change how __index works on on subclasses
-  local prevSubclass = theClass.subclass
-  theClass.subclass = function(aClass, name, ...)
-    local theSubClass = prevSubclass(aClass, name, ...)
-    _changeClassDict(theSubClass)
-    return theSubClass
-  end
+  _modifyAllocateMethod(theClass)
+  _modifySubclassMethod(theClass)
 
 end
 
