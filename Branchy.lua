@@ -76,11 +76,9 @@ function Branchy:addChild(child, key)
     child.parent:removeChild(child)
   end
 
-  if key then
-    self:removeChild(self.children[key])
-  else
-    key = #self.children + 1
-  end
+  key = key or #self.children + 1
+
+  self:removeChild(self.children[key])
 
   self.children[key] = child
   child.parent = self
