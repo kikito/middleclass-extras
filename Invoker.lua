@@ -27,17 +27,27 @@
 
 assert(Object~=nil and class~=nil, 'MiddleClass not detected. Please require it before using Beholder')
 
+
+local function _invokeString(self, methodName, ...)
+  local method = self[methodName]
+  assert(type(method)=='function', 'Could not find ' .. methodName .. ' in ' .. tostring(self))
+  return method(self, ...)
+end
+
+local function _invokeFunction(self, func, ...)
+  return func(self, ...)
+end
+
+local _functionByType = { ['string'] = _invokeString, ['function'] = _invokeFunction }
+
 Invoker = {
 
   invoke = function(self, methodOrName, ...)
-    local tm = type(methodOrName)
-    assert(tm == 'string' or tm == 'function', 'methodOrName should be either a function or string. It was a '..tm.. ': ' .. tostring(methodOrName))
-    local method = methodOrName
-    if tm =='string' then
-      method = self[methodOrName]
-      assert(type(method)=='function', 'Could not find ' .. methodOrName .. ' in ' .. tostring(self))
-    end
-    return method(self, ...)
+    local f = _functionByType[type(methodOrName)]
+    if f then return f(self, methodOrName, ...) end
+
+    error('methodOrName should be either a function or string. It was a '.. type(methodOrName) .. ': ' .. tostring(methodOrName))
+    
   end
 
 }
