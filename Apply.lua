@@ -13,7 +13,7 @@ assert(Invoker~=nil, 'The Apply module requires the Invoker module in order to w
   require 'middleclass-extras.init' -- or 'middleclass-extras'
 
   MyClass = class('MyClass')
-  MyClass:includes(Apply)
+  MyClass:include(Apply)
 
   function MyClass:initialize()
     self.counter = 0
