@@ -10,7 +10,7 @@
   require 'middleclass-extras.init' -- or 'middleclass-extras'
 
   MyClass = class('MyClass')
-  MyClass:includes(Invoker)
+  MyClass:include(Invoker)
   function MyClass:foo(x,y) print('foo executed with params', x, y) end
 
   local obj = MyClass:new()
