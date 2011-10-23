@@ -2,6 +2,20 @@ h1. middleclass-extras
 
 This is a set of additions to "middleclass":http://www.github.org/kikito/middleclass.
 
+h1. Warning:
+
+middleclass-extras was made for middleclass 1.x and it's not under development any more.
+
+middleclass 2.x has some features that make it incompatible with middleclass-extras.
+
+middleclass-extras is being (slowly) re-done as a series of smaller libs. Right now, the only one completely finished is Stateful:
+
+* "stateful.lua":http://github.com/kikito/stateful.lua
+
+Other libraries might follow, but it might just take time. Sorry about that.
+
+
+
 h1. Module brief description
 
 What follows is a brief description of each of the middleclass-extras modules. Each nodule is commented out with usage examples. You can find more examples on the /spec/ folder.
